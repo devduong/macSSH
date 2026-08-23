@@ -1,0 +1,674 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		47384BA32E96FC5200ECB4B5 /* Citadel in Frameworks */ = {isa = PBXBuildFile; productRef = 47384BA22E96FC5200ECB4B5 /* Citadel */; };
+		47679DD22F33D7E3002F804C /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 47679DD12F33D7E3002F804C /* SwiftTerm */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4721B2962F2C013B00279B18 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47384B6B2E96EB2800ECB4B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47384B722E96EB2800ECB4B5;
+			remoteInfo = macSSH;
+		};
+		477B69752F2A5F5900B7EBC3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47384B6B2E96EB2800ECB4B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47384B722E96EB2800ECB4B5;
+			remoteInfo = macSSH;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		4721B2902F2C013B00279B18 /* macSSHUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macSSHUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		47384B732E96EB2800ECB4B5 /* macSSH.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = macSSH.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		477B69712F2A5F5900B7EBC3 /* macSSHTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macSSHTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		4721B2912F2C013B00279B18 /* macSSHUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = macSSHUITests;
+			sourceTree = "<group>";
+		};
+		47384B752E96EB2800ECB4B5 /* macSSH */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = macSSH;
+			sourceTree = "<group>";
+		};
+		477B69722F2A5F5900B7EBC3 /* macSSHTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = macSSHTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4721B28D2F2C013B00279B18 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47384B702E96EB2800ECB4B5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47384BA32E96FC5200ECB4B5 /* Citadel in Frameworks */,
+				47679DD22F33D7E3002F804C /* SwiftTerm in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		477B696E2F2A5F5900B7EBC3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		47384B6A2E96EB2800ECB4B5 = {
+			isa = PBXGroup;
+			children = (
+				47384B752E96EB2800ECB4B5 /* macSSH */,
+				477B69722F2A5F5900B7EBC3 /* macSSHTests */,
+				4721B2912F2C013B00279B18 /* macSSHUITests */,
+				47384B742E96EB2800ECB4B5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		47384B742E96EB2800ECB4B5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				47384B732E96EB2800ECB4B5 /* macSSH.app */,
+				477B69712F2A5F5900B7EBC3 /* macSSHTests.xctest */,
+				4721B2902F2C013B00279B18 /* macSSHUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4721B28F2F2C013B00279B18 /* macSSHUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4721B2982F2C013B00279B18 /* Build configuration list for PBXNativeTarget "macSSHUITests" */;
+			buildPhases = (
+				4721B28C2F2C013B00279B18 /* Sources */,
+				4721B28D2F2C013B00279B18 /* Frameworks */,
+				4721B28E2F2C013B00279B18 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4721B2972F2C013B00279B18 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4721B2912F2C013B00279B18 /* macSSHUITests */,
+			);
+			name = macSSHUITests;
+			packageProductDependencies = (
+			);
+			productName = macSSHUITests;
+			productReference = 4721B2902F2C013B00279B18 /* macSSHUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		47384B722E96EB2800ECB4B5 /* macSSH */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47384B802E96EB2900ECB4B5 /* Build configuration list for PBXNativeTarget "macSSH" */;
+			buildPhases = (
+				47384B6F2E96EB2800ECB4B5 /* Sources */,
+				47384B702E96EB2800ECB4B5 /* Frameworks */,
+				47384B712E96EB2800ECB4B5 /* Resources */,
+				47A0B1C22F4A000100000001 /* Stamp Version from Git Tag */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47384B752E96EB2800ECB4B5 /* macSSH */,
+			);
+			name = macSSH;
+			packageProductDependencies = (
+				47384BA22E96FC5200ECB4B5 /* Citadel */,
+				47679DD12F33D7E3002F804C /* SwiftTerm */,
+			);
+			productName = macSSH;
+			productReference = 47384B732E96EB2800ECB4B5 /* macSSH.app */;
+			productType = "com.apple.product-type.application";
+		};
+		477B69702F2A5F5900B7EBC3 /* macSSHTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 477B69772F2A5F5900B7EBC3 /* Build configuration list for PBXNativeTarget "macSSHTests" */;
+			buildPhases = (
+				477B696D2F2A5F5900B7EBC3 /* Sources */,
+				477B696E2F2A5F5900B7EBC3 /* Frameworks */,
+				477B696F2F2A5F5900B7EBC3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				477B69762F2A5F5900B7EBC3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				477B69722F2A5F5900B7EBC3 /* macSSHTests */,
+			);
+			name = macSSHTests;
+			packageProductDependencies = (
+			);
+			productName = macSSHTests;
+			productReference = 477B69712F2A5F5900B7EBC3 /* macSSHTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		47384B6B2E96EB2800ECB4B5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					4721B28F2F2C013B00279B18 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 47384B722E96EB2800ECB4B5;
+					};
+					47384B722E96EB2800ECB4B5 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					477B69702F2A5F5900B7EBC3 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 47384B722E96EB2800ECB4B5;
+					};
+				};
+			};
+			buildConfigurationList = 47384B6E2E96EB2800ECB4B5 /* Build configuration list for PBXProject "macSSH" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 47384B6A2E96EB2800ECB4B5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				47384BA12E96FC5200ECB4B5 /* XCRemoteSwiftPackageReference "Citadel" */,
+				47679DD02F33D7E3002F804C /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 47384B742E96EB2800ECB4B5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				47384B722E96EB2800ECB4B5 /* macSSH */,
+				477B69702F2A5F5900B7EBC3 /* macSSHTests */,
+				4721B28F2F2C013B00279B18 /* macSSHUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4721B28E2F2C013B00279B18 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47384B712E96EB2800ECB4B5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		477B696F2F2A5F5900B7EBC3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		47A0B1C22F4A000100000001 /* Stamp Version from Git Tag */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp Version from Git Tag";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "#!/bin/bash\n# Auto-version from git tags\n# CI can override via MACSSH_VERSION / MACSSH_BUILD_NUMBER env vars\n\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n\nif [ ! -f \"$PLIST\" ]; then\n    echo \"warning: Info.plist not found at $PLIST, skipping version stamp\"\n    exit 0\nfi\n\n# --- Marketing version ---\nif [ -n \"$MACSSH_VERSION\" ]; then\n    VERSION=\"$MACSSH_VERSION\"\nelse\n    VERSION=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null | sed 's/^v//')\nfi\n\nif [ -n \"$VERSION\" ] && echo \"$VERSION\" | grep -qE '^[0-9]+\\.[0-9]+\\.[0-9]+$'; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n    echo \"Stamped marketing version: $VERSION\"\nelse\n    echo \"warning: Could not determine version from git tag, keeping plist default\"\nfi\n\n# --- Build number ---\nif [ -n \"$MACSSH_BUILD_NUMBER\" ]; then\n    BUILD=\"$MACSSH_BUILD_NUMBER\"\nelse\n    BUILD=$(date +%m%d%Y)\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\necho \"Stamped build number: $BUILD\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4721B28C2F2C013B00279B18 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47384B6F2E96EB2800ECB4B5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		477B696D2F2A5F5900B7EBC3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4721B2972F2C013B00279B18 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 47384B722E96EB2800ECB4B5 /* macSSH */;
+			targetProxy = 4721B2962F2C013B00279B18 /* PBXContainerItemProxy */;
+		};
+		477B69762F2A5F5900B7EBC3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 47384B722E96EB2800ECB4B5 /* macSSH */;
+			targetProxy = 477B69752F2A5F5900B7EBC3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		4721B2992F2C013B00279B18 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSHUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = macSSH;
+			};
+			name = Debug;
+		};
+		4721B29A2F2C013B00279B18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSHUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = macSSH;
+			};
+			name = Release;
+		};
+		47384B7E2E96EB2900ECB4B5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		47384B7F2E96EB2900ECB4B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		47384B812E96EB2900ECB4B5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = macSSH/macSSH.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 02122026;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = macSSH/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = macSSH;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.2.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSH;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		47384B822E96EB2900ECB4B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = macSSH/macSSH.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 02122026;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = macSSH/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = macSSH;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.2.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSH;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		477B69782F2A5F5900B7EBC3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSHTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/macSSH.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/macSSH";
+			};
+			name = Debug;
+		};
+		477B69792F2A5F5900B7EBC3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NW7K6UFA6P;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSHTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/macSSH.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/macSSH";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4721B2982F2C013B00279B18 /* Build configuration list for PBXNativeTarget "macSSHUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4721B2992F2C013B00279B18 /* Debug */,
+				4721B29A2F2C013B00279B18 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47384B6E2E96EB2800ECB4B5 /* Build configuration list for PBXProject "macSSH" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47384B7E2E96EB2900ECB4B5 /* Debug */,
+				47384B7F2E96EB2900ECB4B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47384B802E96EB2900ECB4B5 /* Build configuration list for PBXNativeTarget "macSSH" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47384B812E96EB2900ECB4B5 /* Debug */,
+				47384B822E96EB2900ECB4B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		477B69772F2A5F5900B7EBC3 /* Build configuration list for PBXNativeTarget "macSSHTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				477B69782F2A5F5900B7EBC3 /* Debug */,
+				477B69792F2A5F5900B7EBC3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		47384BA12E96FC5200ECB4B5 /* XCRemoteSwiftPackageReference "Citadel" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Orlandos-nl/Citadel";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.11.1;
+			};
+		};
+		47679DD02F33D7E3002F804C /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		47384BA22E96FC5200ECB4B5 /* Citadel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47384BA12E96FC5200ECB4B5 /* XCRemoteSwiftPackageReference "Citadel" */;
+			productName = Citadel;
+		};
+		47679DD12F33D7E3002F804C /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 47679DD02F33D7E3002F804C /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 47384B6B2E96EB2800ECB4B5 /* Project object */;
+}

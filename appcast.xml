@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>macSCP Updates</title>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+        <title>Version 0.2.7</title>
+        <pubDate>Thu, 19 Mar 2026 06:49:51 +0000</pubDate>
+        <sparkle:version>202603190633</sparkle:version>
+        <sparkle:shortVersionString>0.2.7</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[
+            <ul>
+                <li>See release notes on GitHub</li>
+            </ul>
+        ]]></description>
+        <enclosure
+            url="https://github.com/macnev2013/macSCP/releases/download/v0.2.7/macSCP-0.2.7.dmg"
+            type="application/octet-stream"
+            sparkle:edSignature="EdUiMqNuCWCAP9Zd7RTBCH8q1smmmN5gUK8inYqR+foSRLIZmSlCIXVORwnnZfLI6g4q9Q1xNdIz1HcGuKIoCw=="
+            length="23321696"
+        />
+    </item>
+        <item>
+        <title>Version 0.2.6</title>
+        <pubDate>Sun, 15 Mar 2026 08:53:54 +0000</pubDate>
+        <sparkle:version>202603150843</sparkle:version>
+        <sparkle:shortVersionString>0.2.6</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[
+            <ul>
+                <li>See release notes on GitHub</li>
+            </ul>
+        ]]></description>
+        <enclosure
+            url="https://github.com/macnev2013/macSCP/releases/download/v0.2.6/macSCP-0.2.6.dmg"
+            type="application/octet-stream"
+            sparkle:edSignature="NLfcnTR9o1XbaSyIR5X3QmjNSzbe7fzuBJD6pxkqRV4+c7FSg+gokiTiJV38JS0jOJvEJYIVlYlickQNHiaDBQ=="
+            length="23292311"
+        />
+    </item>
+        <item>
+        <title>Version 0.2.5</title>
+        <pubDate>Thu, 12 Feb 2026 21:15:06 +0000</pubDate>
+        <sparkle:version>202602122104</sparkle:version>
+        <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[
+            <ul>
+                <li>See release notes on GitHub</li>
+            </ul>
+        ]]></description>
+        <enclosure
+            url="https://github.com/macnev2013/macSCP/releases/download/v0.2.5/macSCP-0.2.5.dmg"
+            type="application/octet-stream"
+            sparkle:edSignature="okDV46521pZq3qE8AfgJ5YPxIzqTeEFNrTnvMBZuBcV6n5/DfN10iPCBfvVzY6JrITKfqdq2NCQMOQZtvZKmBg=="
+            length="23248796"
+        />
+    </item>
+        <item>
+        <title>Version 0.2.5</title>
+        <pubDate>Thu, 12 Feb 2026 20:54:05 +0000</pubDate>
+        <sparkle:version>202602122054</sparkle:version>
+        <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[
+            <ul>
+                <li>See release notes on GitHub</li>
+            </ul>
+        ]]></description>
+        <enclosure
+            url="https://github.com/macnev2013/macSCP/releases/download/v0.2.5/macSCP-0.2.5.dmg"
+            type="application/octet-stream"
+            sparkle:edSignature="1AspGfDNJZLaP7gteLyA7ioyEJNifYTYkjfyKgQApE0y1qVsqDxBGbt/IHJqzZQ26U+exBtVmYuhePiXTIPZCw=="
+            length="23251542"
+        />
+    </item>
+        <item>
+        <title>Version 0.2.4</title>
+        <pubDate>Thu, 12 Feb 2026 18:34:11 +0000</pubDate>
+        <sparkle:version>202602121834</sparkle:version>
+        <sparkle:shortVersionString>0.2.4</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <description><![CDATA[
+            <ul>
+                <li>See release notes on GitHub</li>
+            </ul>
+        ]]></description>
+        <enclosure
+            url="https://github.com/macnev2013/macSCP/releases/download/v0.2.4/macSCP-0.2.4.dmg"
+            type="application/octet-stream"
+            sparkle:edSignature="7r6Fy1ImqGNVdNuRTaFKfwNmpkkHDwLqFlB2UKJv984/6/gEMtwLIUboPFAPFp+h1nJR4vOe8Ote1d3O9Vw1Cw=="
+            length="23187264"
+        />
+    </item>
+    </channel>
+</rss>
