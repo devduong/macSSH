@@ -426,17 +426,17 @@ extension NativeFileTableView.Coordinator {
             openItem.image = NSImage(systemSymbolName: "pencil.and.outline", accessibilityDescription: nil)
             menu.addItem(openItem)
 
-            // Open With Default App (download, open, auto-upload on save)
-            let openWithDefaultItem = NSMenuItem(title: L10n.tr("open_with_default"), action: #selector(handleOpenWithDefaultApp(_:)), keyEquivalent: "")
-            openWithDefaultItem.target = self
-            openWithDefaultItem.representedObject = file
-            openWithDefaultItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
-            menu.addItem(openWithDefaultItem)
+            // Edit With Default App (download, open, auto-upload on save)
+            let editWithDefaultItem = NSMenuItem(title: L10n.tr("edit_with_default"), action: #selector(handleOpenWithDefaultApp(_:)), keyEquivalent: "")
+            editWithDefaultItem.target = self
+            editWithDefaultItem.representedObject = file
+            editWithDefaultItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+            menu.addItem(editWithDefaultItem)
 
-            // Open With → submenu listing compatible apps
+            // Edit With → submenu listing compatible apps
             let suggestedApps = ExternalEditorService.suggestedApplications(for: file.name)
             if !suggestedApps.isEmpty {
-                let openWithSubmenu = NSMenu(title: L10n.tr("open_with"))
+                let editWithSubmenu = NSMenu(title: L10n.tr("edit_with"))
                 for app in suggestedApps {
                     let appItem = NSMenuItem(title: app.name, action: #selector(handleOpenWithSpecificApp(_:)), keyEquivalent: "")
                     appItem.target = self
@@ -445,12 +445,12 @@ extension NativeFileTableView.Coordinator {
                         appIcon.size = NSSize(width: 16, height: 16)
                         appItem.image = appIcon
                     }
-                    openWithSubmenu.addItem(appItem)
+                    editWithSubmenu.addItem(appItem)
                 }
-                let openWithItem = NSMenuItem(title: L10n.tr("open_with"), action: nil, keyEquivalent: "")
-                openWithItem.image = NSImage(systemSymbolName: "app.badge.checkmark", accessibilityDescription: nil)
-                openWithItem.submenu = openWithSubmenu
-                menu.addItem(openWithItem)
+                let editWithItem = NSMenuItem(title: L10n.tr("edit_with"), action: nil, keyEquivalent: "")
+                editWithItem.image = NSImage(systemSymbolName: "app.badge.checkmark", accessibilityDescription: nil)
+                editWithItem.submenu = editWithSubmenu
+                menu.addItem(editWithItem)
             }
 
             menu.addItem(NSMenuItem.separator())

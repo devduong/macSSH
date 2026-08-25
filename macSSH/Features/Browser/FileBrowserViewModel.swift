@@ -100,9 +100,9 @@ final class FileBrowserViewModel {
 
     func addLog(_ message: String, level: SFTPLogLevel = .info) {
         let entry = SFTPLogEntry(timestamp: Date(), level: level, message: message)
-        activityLogs.append(entry)
+        activityLogs.insert(entry, at: 0)
         if activityLogs.count > 500 {
-            activityLogs.removeFirst(50)
+            activityLogs.removeLast(50)
         }
     }
 
@@ -1048,18 +1048,7 @@ final class FileBrowserViewModel {
             },
             uploadHandler: { [weak self] localURL, remotePath in
                 guard let self = self else { return }
-                do {
-                    try await self.fileRepository.upload(localURL: localURL, to: remotePath)
-                    await MainActor.run {
-                        self.addLog("Auto-uploaded \(localURL.lastPathComponent) to \(remotePath)", level: .success)
-                    }
-                    // Refresh file list to show updated modification date
-                    await self.loadFiles(silent: true)
-                } catch {
-                    await MainActor.run {
-                        self.addLog("Auto-upload failed: \(localURL.lastPathComponent) - \(error.localizedDescription)", level: .error)
-                    }
-                }
+                await self.performAutoUpload(localURL: localURL, remotePath: remotePath)
             }
         )
     }
@@ -1083,19 +1072,78 @@ final class FileBrowserViewModel {
             },
             uploadHandler: { [weak self] localURL, remotePath in
                 guard let self = self else { return }
-                do {
-                    try await self.fileRepository.upload(localURL: localURL, to: remotePath)
-                    await MainActor.run {
-                        self.addLog("Auto-uploaded \(localURL.lastPathComponent) to \(remotePath)", level: .success)
-                    }
-                    await self.loadFiles(silent: true)
-                } catch {
-                    await MainActor.run {
-                        self.addLog("Auto-upload failed: \(localURL.lastPathComponent) - \(error.localizedDescription)", level: .error)
-                    }
-                }
+                await self.performAutoUpload(localURL: localURL, remotePath: remotePath)
             }
         )
+    }
+
+    /// Handles uploading a modified file from external editor back to remote,
+    /// creating a tracked TransferProgress entry in the Upload Queue and Activity Log.
+    private func performAutoUpload(localURL: URL, remotePath: String) async {
+        let fileName = localURL.lastPathComponent
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: localURL.path)[.size] as? Int64) ?? 0
+
+        let transferId = UUID()
+        let transfer = TransferProgress(
+            id: transferId,
+            fileName: fileName,
+            localURL: localURL,
+            remotePath: remotePath,
+            bytesTransferred: 0,
+            totalBytes: fileSize,
+            transferType: .upload,
+            status: .inProgress
+        )
+
+        activeTransfers[transferId] = transfer
+        addLog("Auto-upload started: \(fileName) (\(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file))) -> \(remotePath)")
+
+        let uploadTask = Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                try Task.checkCancellation()
+
+                try await self.fileRepository.upload(localURL: localURL, to: remotePath) { [weak self] bytesTransferred in
+                    Task { @MainActor in
+                        self?.updateTransferProgress(id: transferId, bytesTransferred: bytesTransferred)
+                    }
+                }
+
+                try Task.checkCancellation()
+
+                await MainActor.run {
+                    if var completedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
+                        completedTransfer.status = .completed
+                        completedTransfer.bytesTransferred = fileSize
+                        self.recentTransfers.insert(completedTransfer, at: 0)
+                        if self.recentTransfers.count > 50 {
+                            self.recentTransfers = Array(self.recentTransfers.prefix(50))
+                        }
+                    }
+                    self.transferTasks.removeValue(forKey: transferId)
+                    self.addLog("Auto-upload complete: \(fileName) (\(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)))", level: .success)
+                }
+
+                AnalyticsService.trackFileUploaded(protocol: .init(from: self.connection.connectionType), fileCount: 1, totalBytes: fileSize)
+                logInfo("Auto-uploaded: \(fileName)", category: .sftp)
+                await self.loadFiles(silent: true)
+
+            } catch {
+                await MainActor.run {
+                    if var failedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
+                        failedTransfer.status = .failed
+                        failedTransfer.error = error.localizedDescription
+                        self.recentTransfers.insert(failedTransfer, at: 0)
+                    }
+                    self.transferTasks.removeValue(forKey: transferId)
+                    self.addLog("Auto-upload failed: \(fileName) - \(error.localizedDescription)", level: .error)
+                }
+                logError("Auto-upload failed for \(fileName): \(error)", category: .sftp)
+            }
+        }
+
+        transferTasks[transferId] = uploadTask
+        await uploadTask.value
     }
     // MARK: - Selection
 

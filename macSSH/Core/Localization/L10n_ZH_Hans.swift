@@ -132,6 +132,8 @@ public enum L10n_ZH_Hans {
         "download_as": "下载另存为…",
         "open_with_default": "使用默认应用打开",
         "open_with": "打开方式…",
+        "edit_with_default": "使用默认应用编辑",
+        "edit_with": "编辑方式…",
         "show_in_finder": "在访达中显示",
         "move_to_trash": "移到废纸篓",
         "file_exists_remote_title": "远程服务器上已存在同名文件",

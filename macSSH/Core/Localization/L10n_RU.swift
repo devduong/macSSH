@@ -132,6 +132,8 @@ public enum L10n_RU {
         "download_as": "Скачать как…",
         "open_with_default": "Открыть в стандартном приложении",
         "open_with": "Открыть с помощью…",
+        "edit_with_default": "Редактировать в стандартном приложении",
+        "edit_with": "Редактировать с помощью…",
         "show_in_finder": "Показать в Finder",
         "move_to_trash": "Переместить в корзину",
         "file_exists_remote_title": "Файл уже существует на сервере",

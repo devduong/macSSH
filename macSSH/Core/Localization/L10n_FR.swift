@@ -132,6 +132,8 @@ public enum L10n_FR {
         "download_as": "Télécharger sous…",
         "open_with_default": "Ouvrir avec l'application par défaut",
         "open_with": "Ouvrir avec…",
+        "edit_with_default": "Modifier avec l'application par défaut",
+        "edit_with": "Modifier avec…",
         "show_in_finder": "Afficher dans le Finder",
         "move_to_trash": "Placer dans la corbeille",
         "file_exists_remote_title": "Le fichier existe déjà sur le serveur",

@@ -365,9 +365,9 @@ struct TransferQueueBottomPanel: View {
                         .padding(8)
                     }
                     .onChange(of: viewModel.activityLogs.count) { _, _ in
-                        if let last = viewModel.activityLogs.last {
+                        if let first = viewModel.activityLogs.first {
                             withAnimation {
-                                proxy.scrollTo(last.id, anchor: .bottom)
+                                proxy.scrollTo(first.id, anchor: .top)
                             }
                         }
                     }

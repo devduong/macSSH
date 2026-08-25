@@ -162,96 +162,147 @@ actor Socks5ProxyServer {
     private func runSocksSession(connection: NWConnection, sshClient: SSHClient) async {
         connection.start(queue: Self.sessionQueue)
 
+        let coordinator = SocksSessionCoordinator(connection: connection)
+
         do {
             // 1. Handshake: Method negotiation (RFC 1928 Section 3)
-            let greetingData = try await receiveExactBytes(connection: connection, count: 2)
+            let greetingData: Data
+            do {
+                greetingData = try await receiveExactBytes(connection: connection, count: 2)
+            } catch {
+                coordinator.terminate(closingChannel: false)
+                return
+            }
+
             guard greetingData.count >= 2, greetingData[0] == 0x05 else {
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             let numMethods = Int(greetingData[1])
-            let methodsData = try await receiveExactBytes(connection: connection, count: numMethods)
+            guard numMethods > 0 else {
+                _ = try? await sendData(connection: connection, data: Data([0x05, 0xFF]))
+                coordinator.terminate(closingChannel: false)
+                return
+            }
+
+            let methodsData: Data
+            do {
+                methodsData = try await receiveExactBytes(connection: connection, count: numMethods)
+            } catch {
+                coordinator.terminate(closingChannel: false)
+                return
+            }
 
             // Must support 0x00 (NO AUTHENTICATION REQUIRED)
             guard methodsData.contains(0x00) else {
                 _ = try? await sendData(connection: connection, data: Data([0x05, 0xFF]))
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             // Reply: Version 5, Method 0 (No Auth)
-            try await sendData(connection: connection, data: Data([0x05, 0x00]))
+            do {
+                try await sendData(connection: connection, data: Data([0x05, 0x00]))
+            } catch {
+                coordinator.terminate(closingChannel: false)
+                return
+            }
 
             // 2. Request Details (RFC 1928 Section 4)
-            let reqHeader = try await receiveExactBytes(connection: connection, count: 4)
+            let reqHeader: Data
+            do {
+                reqHeader = try await receiveExactBytes(connection: connection, count: 4)
+            } catch {
+                coordinator.terminate(closingChannel: false)
+                return
+            }
+
             guard reqHeader.count == 4, reqHeader[0] == 0x05 else {
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             let cmd = reqHeader[1]
             guard cmd == 0x01 else {
                 // CMD 0x01 = CONNECT. (BIND 0x02 and UDP 0x03 not supported)
-                let resp = Data([0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                let resp = Data([0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0]) // Command not supported
                 _ = try? await sendData(connection: connection, data: resp)
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             let atyp = reqHeader[3]
             var targetHost = ""
 
-            switch atyp {
-            case 0x01: // IPv4 (4 bytes)
-                let ipBytes = try await receiveExactBytes(connection: connection, count: 4)
-                targetHost = ipBytes.map { String($0) }.joined(separator: ".")
-            case 0x03: // Domain Name (1 byte length + domain string)
-                let lenData = try await receiveExactBytes(connection: connection, count: 1)
-                let domainLen = Int(lenData[0])
-                let domainBytes = try await receiveExactBytes(connection: connection, count: domainLen)
-                guard let domainStr = String(data: domainBytes, encoding: .utf8), !domainStr.isEmpty else {
-                    let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+            do {
+                switch atyp {
+                case 0x01: // IPv4 (4 bytes)
+                    let ipBytes = try await receiveExactBytes(connection: connection, count: 4)
+                    targetHost = ipBytes.map { String($0) }.joined(separator: ".")
+                case 0x03: // Domain Name (1 byte length + domain string)
+                    let lenData = try await receiveExactBytes(connection: connection, count: 1)
+                    let domainLen = Int(lenData[0])
+                    guard domainLen > 0 else { throw AppError.connectionFailed("Empty domain") }
+                    let domainBytes = try await receiveExactBytes(connection: connection, count: domainLen)
+                    guard let domainStr = String(data: domainBytes, encoding: .utf8), !domainStr.isEmpty else {
+                        throw AppError.connectionFailed("Invalid domain string")
+                    }
+                    targetHost = domainStr
+                case 0x04: // IPv6 (16 bytes)
+                    let ip6Bytes = try await receiveExactBytes(connection: connection, count: 16)
+                    var hexParts: [String] = []
+                    for i in stride(from: 0, to: 16, by: 2) {
+                        let val = (UInt16(ip6Bytes[i]) << 8) | UInt16(ip6Bytes[i + 1])
+                        hexParts.append(String(format: "%x", val))
+                    }
+                    targetHost = hexParts.joined(separator: ":")
+                default:
+                    let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0]) // Address type not supported
                     _ = try? await sendData(connection: connection, data: resp)
-                    connection.cancel()
+                    coordinator.terminate(closingChannel: false)
                     return
                 }
-                targetHost = domainStr
-            case 0x04: // IPv6 (16 bytes)
-                let ip6Bytes = try await receiveExactBytes(connection: connection, count: 16)
-                var hexParts: [String] = []
-                for i in stride(from: 0, to: 16, by: 2) {
-                    let val = (UInt16(ip6Bytes[i]) << 8) | UInt16(ip6Bytes[i + 1])
-                    hexParts.append(String(format: "%x", val))
-                }
-                targetHost = hexParts.joined(separator: ":")
-            default:
+            } catch {
                 let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                 _ = try? await sendData(connection: connection, data: resp)
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             // Port (2 bytes big endian)
-            let portBytes = try await receiveExactBytes(connection: connection, count: 2)
-            let targetPort = (Int(portBytes[0]) << 8) | Int(portBytes[1])
+            let targetPort: Int
+            do {
+                let portBytes = try await receiveExactBytes(connection: connection, count: 2)
+                targetPort = (Int(portBytes[0]) << 8) | Int(portBytes[1])
+            } catch {
+                coordinator.terminate(closingChannel: false)
+                return
+            }
+
             guard targetPort > 0 && targetPort <= 65535 else {
-                let resp = Data([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                let resp = Data([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]) // General SOCKS failure
                 _ = try? await sendData(connection: connection, data: resp)
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             // 3. Open Direct-TCPIP Channel via Citadel SSH Client
-            let originator = try SocketAddress(ipAddress: "127.0.0.1", port: 0)
+            let originator: SocketAddress
+            do {
+                originator = try SocketAddress(ipAddress: "127.0.0.1", port: 0)
+            } catch {
+                let resp = Data([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                _ = try? await sendData(connection: connection, data: resp)
+                coordinator.terminate(closingChannel: false)
+                return
+            }
+
             let directTCPIP = SSHChannelType.DirectTCPIP(
                 targetHost: targetHost,
                 targetPort: targetPort,
                 originatorAddress: originator
             )
-
-            // Setup bridge state coordinator for clean lifecycle synchronization
-            let coordinator = SocksSessionCoordinator(connection: connection)
 
             let channel: Channel
             do {
@@ -263,21 +314,26 @@ actor Socks5ProxyServer {
                 // Remote side refused or host unreachable — send RFC 1928 0x05 (Connection Refused)
                 let resp = Data([0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                 _ = try? await sendData(connection: connection, data: resp)
-                connection.cancel()
+                coordinator.terminate(closingChannel: false)
                 return
             }
 
             coordinator.setChannel(channel)
 
             // Reply: Succeeded (0x00) with bound address 0.0.0.0:0
-            let successResp = Data([0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
-            try await sendData(connection: connection, data: successResp)
+            do {
+                let successResp = Data([0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+                try await sendData(connection: connection, data: successResp)
+            } catch {
+                coordinator.terminate(closingChannel: true)
+                return
+            }
 
             // 4. Pipe local client -> SSH Channel (Hot raw stream path)
             await pipeClientToSSHChannel(connection: connection, channel: channel, coordinator: coordinator)
 
         } catch {
-            connection.cancel()
+            coordinator.terminate(closingChannel: true)
         }
     }
 
@@ -293,26 +349,34 @@ actor Socks5ProxyServer {
                 let data = try await receiveSomeData(connection: connection)
                 guard !data.isEmpty else {
                     // Local client closed connection (EOF)
-                    coordinator.terminate()
+                    coordinator.terminate(closingChannel: true)
                     break
                 }
 
                 guard channel.isActive && !coordinator.isTerminated else {
-                    coordinator.terminate()
+                    coordinator.terminate(closingChannel: false)
                     break
                 }
 
                 var buffer = channel.allocator.buffer(capacity: data.count)
                 buffer.writeBytes(data)
-                try await channel.writeAndFlush(buffer)
+
+                do {
+                    try await channel.writeAndFlush(buffer)
+                } catch {
+                    // Channel pipe broken or closed by remote
+                    coordinator.terminate(closingChannel: false)
+                    break
+                }
             } catch {
-                coordinator.terminate()
+                // Connection read error or cancelled
+                coordinator.terminate(closingChannel: true)
                 break
             }
         }
     }
 
-    // MARK: - Raw Network Helpers
+    // MARK: - Raw Network Helpers (Thread-Safe Protected Continuations)
 
     private func receiveExactBytes(connection: NWConnection, count: Int) async throws -> Data {
         var accumulated = Data()
@@ -320,7 +384,15 @@ actor Socks5ProxyServer {
         while accumulated.count < count {
             let needed = count - accumulated.count
             let chunk = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                let lock = NSLock()
+                var hasResumed = false
+
                 connection.receive(minimumIncompleteLength: 1, maximumLength: needed) { content, _, isComplete, error in
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !hasResumed else { return }
+                    hasResumed = true
+
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let content = content, !content.isEmpty {
@@ -342,7 +414,15 @@ actor Socks5ProxyServer {
 
     private func receiveSomeData(connection: NWConnection) async throws -> Data {
         return try await withCheckedThrowingContinuation { continuation in
+            let lock = NSLock()
+            var hasResumed = false
+
             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
+                lock.lock()
+                defer { lock.unlock() }
+                guard !hasResumed else { return }
+                hasResumed = true
+
                 if let error = error {
                     continuation.resume(throwing: error)
                 } else if let content = content {
@@ -358,7 +438,15 @@ actor Socks5ProxyServer {
 
     private func sendData(connection: NWConnection, data: Data) async throws {
         return try await withCheckedThrowingContinuation { continuation in
+            let lock = NSLock()
+            var hasResumed = false
+
             connection.send(content: data, completion: .contentProcessed { error in
+                lock.lock()
+                defer { lock.unlock() }
+                guard !hasResumed else { return }
+                hasResumed = true
+
                 if let error = error {
                     continuation.resume(throwing: error)
                 } else {
@@ -393,7 +481,7 @@ private final class SocksSessionCoordinator: @unchecked Sendable {
         }
     }
 
-    func terminate() {
+    func terminate(closingChannel: Bool = true) {
         var chan: Channel?
         lock.withLock {
             guard !_isTerminated else { return }
@@ -403,10 +491,18 @@ private final class SocksSessionCoordinator: @unchecked Sendable {
 
         connection.cancel()
 
-        if let channel = chan {
+        if closingChannel, let channel = chan {
             channel.eventLoop.execute {
-                if channel.isActive {
-                    channel.close(promise: nil)
+                guard channel.isActive else { return }
+                // Half-close output (send EOF) first so NIOSSH remains in halfClosedLocal,
+                // allowing pending window adjusts and remaining inbound reads to finish cleanly
+                channel.close(mode: .output, promise: nil)
+
+                // Safety net: force full closure after 5s if remote never closes
+                _ = channel.eventLoop.scheduleTask(in: .seconds(5)) {
+                    if channel.isActive {
+                        channel.close(mode: .all, promise: nil)
+                    }
                 }
             }
         }
@@ -432,20 +528,22 @@ private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Send
         let buffer = unwrapInboundIn(data)
         let bytes = Data(buffer.readableBytesView)
 
+        guard !bytes.isEmpty else { return }
+
         coordinator.connection.send(content: bytes, completion: .contentProcessed { [weak self] error in
             if error != nil {
-                self?.coordinator.terminate()
+                self?.coordinator.terminate(closingChannel: false)
             }
         })
     }
 
     func channelInactive(context: ChannelHandlerContext) {
-        coordinator.terminate()
+        coordinator.terminate(closingChannel: false)
         context.fireChannelInactive()
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        coordinator.terminate()
+        coordinator.terminate(closingChannel: false)
     }
 }
 

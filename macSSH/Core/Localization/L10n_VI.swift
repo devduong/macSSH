@@ -132,6 +132,8 @@ public enum L10n_VI {
         "download_as": "Tải xuống thành…",
         "open_with_default": "Mở bằng ứng dụng mặc định",
         "open_with": "Mở bằng…",
+        "edit_with_default": "Chỉnh sửa bằng ứng dụng mặc định",
+        "edit_with": "Chỉnh sửa bằng…",
         "show_in_finder": "Hiển thị trong Finder",
         "move_to_trash": "Chuyển vào thùng rác",
         "file_exists_remote_title": "Tệp đã tồn tại trên máy chủ",

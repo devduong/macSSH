@@ -132,6 +132,8 @@ public enum L10n_ZH_Hant {
         "download_as": "下載另存為…",
         "open_with_default": "使用預設應用程式開啟",
         "open_with": "開啟方式…",
+        "edit_with_default": "使用預設應用程式編輯",
+        "edit_with": "編輯方式…",
         "show_in_finder": "在 Finder 中顯示",
         "move_to_trash": "移至垃圾桶",
         "file_exists_remote_title": "遠端伺服器已存在同名檔案",

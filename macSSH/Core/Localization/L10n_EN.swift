@@ -132,6 +132,8 @@ public enum L10n_EN {
         "download_as": "Download As…",
         "open_with_default": "Open With Default App",
         "open_with": "Open With…",
+        "edit_with_default": "Edit with Default App",
+        "edit_with": "Edit With…",
         "show_in_finder": "Show in Finder",
         "move_to_trash": "Move to Trash",
         "file_exists_remote_title": "File already exists on remote server",
