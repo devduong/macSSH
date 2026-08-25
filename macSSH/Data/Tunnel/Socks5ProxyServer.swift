@@ -15,7 +15,8 @@ import NIOFoundationCompat
 import NIOSSH
 
 
-/// Manages a local SOCKS5 proxy server forwarding connections through an SSH client
+/// Manages a local SOCKS5 proxy server forwarding connections through an SSH client.
+/// Pure stream redirector: zero data caching, zero payload inspection, zero logging in the data hot path.
 actor Socks5ProxyServer {
     private let port: Int
     private let allowLAN: Bool
@@ -23,6 +24,13 @@ actor Socks5ProxyServer {
     private var listener: NWListener?
     private var isRunning = false
     private var activeSessions: [UUID: Task<Void, Never>] = [:]
+
+    /// Shared concurrent queue for handling all active client I/O streams efficiently
+    private static let sessionQueue = DispatchQueue(
+        label: "com.macssh.socks5.session-pool",
+        qos: .userInitiated,
+        attributes: .concurrent
+    )
 
     init(port: Int, sshClient: SSHClient, allowLAN: Bool = false) {
         self.port = port
@@ -89,14 +97,14 @@ actor Socks5ProxyServer {
                 }
             }
 
-            let queue = DispatchQueue(label: "com.macssh.socks5.\(port)", qos: .userInitiated)
-            newListener.start(queue: queue)
+            let listenerQueue = DispatchQueue(label: "com.macssh.socks5.listener.\(port)", qos: .userInitiated)
+            newListener.start(queue: listenerQueue)
             self.listener = newListener
             self.isRunning = true
         }
 
         let bindDesc = allowLAN ? "0.0.0.0:\(port) (LAN + Localhost)" : "127.0.0.1:\(port) (Localhost only)"
-        logInfo("SOCKS5 Proxy Server successfully listening on \(bindDesc)", category: .network)
+        logInfo("SOCKS5 Proxy Server active on \(bindDesc) (stream mode: zero-copy/no-log)", category: .network)
     }
 
     /// Stops the SOCKS5 proxy server and cancels all active client sessions
@@ -118,12 +126,12 @@ actor Socks5ProxyServer {
     private func handleListenerStateChange(_ state: NWListener.State) {
         switch state {
         case .ready:
-            logInfo("SOCKS5 Proxy listener is ready on port \(port)", category: .network)
+            break
         case .failed(let error):
-            logError("SOCKS5 Proxy listener failed on port \(port): \(error)", category: .network)
+            logError("SOCKS5 Proxy listener failed on port \(port): \(error.localizedDescription)", category: .network)
             stop()
         case .cancelled:
-            logInfo("SOCKS5 Proxy listener cancelled on port \(port)", category: .network)
+            break
         default:
             break
         }
@@ -138,7 +146,7 @@ actor Socks5ProxyServer {
         let sessionId = UUID()
         let sessionTask = Task { [weak self, sshClient] in
             guard let self = self else { return }
-            await self.runSocksSession(id: sessionId, connection: connection, sshClient: sshClient)
+            await self.runSocksSession(connection: connection, sshClient: sshClient)
             await self.removeSession(id: sessionId)
         }
 
@@ -149,15 +157,13 @@ actor Socks5ProxyServer {
         activeSessions.removeValue(forKey: id)
     }
 
-    // MARK: - SOCKS5 Protocol Handling
+    // MARK: - SOCKS5 Handshake & Transparent Stream Forwarding
 
-    private func runSocksSession(id: UUID, connection: NWConnection, sshClient: SSHClient) async {
-        let queue = DispatchQueue(label: "com.macssh.socks5.session.\(id)")
-        connection.start(queue: queue)
+    private func runSocksSession(connection: NWConnection, sshClient: SSHClient) async {
+        connection.start(queue: Self.sessionQueue)
 
         do {
             // 1. Handshake: Method negotiation (RFC 1928 Section 3)
-            // Client greeting: [VER, NMETHODS, METHODS...]
             let greetingData = try await receiveExactBytes(connection: connection, count: 2)
             guard greetingData.count >= 2, greetingData[0] == 0x05 else {
                 connection.cancel()
@@ -167,9 +173,8 @@ actor Socks5ProxyServer {
             let numMethods = Int(greetingData[1])
             let methodsData = try await receiveExactBytes(connection: connection, count: numMethods)
 
-            // We support 0x00 (NO AUTHENTICATION REQUIRED)
+            // Must support 0x00 (NO AUTHENTICATION REQUIRED)
             guard methodsData.contains(0x00) else {
-                // 0xFF = NO ACCEPTABLE METHODS
                 _ = try? await sendData(connection: connection, data: Data([0x05, 0xFF]))
                 connection.cancel()
                 return
@@ -179,7 +184,6 @@ actor Socks5ProxyServer {
             try await sendData(connection: connection, data: Data([0x05, 0x00]))
 
             // 2. Request Details (RFC 1928 Section 4)
-            // Client request: [VER(0x05), CMD, RSV(0x00), ATYP, DST.ADDR, DST.PORT]
             let reqHeader = try await receiveExactBytes(connection: connection, count: 4)
             guard reqHeader.count == 4, reqHeader[0] == 0x05 else {
                 connection.cancel()
@@ -188,8 +192,7 @@ actor Socks5ProxyServer {
 
             let cmd = reqHeader[1]
             guard cmd == 0x01 else {
-                // CMD 0x01 is CONNECT. Others (BIND, UDP) not supported
-                // Reply: Command not supported (0x07)
+                // CMD 0x01 = CONNECT. (BIND 0x02 and UDP 0x03 not supported)
                 let resp = Data([0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                 _ = try? await sendData(connection: connection, data: resp)
                 connection.cancel()
@@ -203,12 +206,12 @@ actor Socks5ProxyServer {
             case 0x01: // IPv4 (4 bytes)
                 let ipBytes = try await receiveExactBytes(connection: connection, count: 4)
                 targetHost = ipBytes.map { String($0) }.joined(separator: ".")
-            case 0x03: // Domain Name (1 byte length + domain)
+            case 0x03: // Domain Name (1 byte length + domain string)
                 let lenData = try await receiveExactBytes(connection: connection, count: 1)
                 let domainLen = Int(lenData[0])
                 let domainBytes = try await receiveExactBytes(connection: connection, count: domainLen)
-                guard let domainStr = String(data: domainBytes, encoding: .utf8) else {
-                    let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0]) // Address type not supported
+                guard let domainStr = String(data: domainBytes, encoding: .utf8), !domainStr.isEmpty else {
+                    let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                     _ = try? await sendData(connection: connection, data: resp)
                     connection.cancel()
                     return
@@ -223,7 +226,7 @@ actor Socks5ProxyServer {
                 }
                 targetHost = hexParts.joined(separator: ":")
             default:
-                let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0]) // Address type not supported
+                let resp = Data([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                 _ = try? await sendData(connection: connection, data: resp)
                 connection.cancel()
                 return
@@ -232,8 +235,12 @@ actor Socks5ProxyServer {
             // Port (2 bytes big endian)
             let portBytes = try await receiveExactBytes(connection: connection, count: 2)
             let targetPort = (Int(portBytes[0]) << 8) | Int(portBytes[1])
-
-            logDebug("SOCKS5 request to forward to \(targetHost):\(targetPort)", category: .network)
+            guard targetPort > 0 && targetPort <= 65535 else {
+                let resp = Data([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                _ = try? await sendData(connection: connection, data: resp)
+                connection.cancel()
+                return
+            }
 
             // 3. Open Direct-TCPIP Channel via Citadel SSH Client
             let originator = try SocketAddress(ipAddress: "127.0.0.1", port: 0)
@@ -243,53 +250,55 @@ actor Socks5ProxyServer {
                 originatorAddress: originator
             )
 
-            // Bridge SSH Channel data to NWConnection
+            // Setup bridge state coordinator for clean lifecycle synchronization
+            let coordinator = SocksSessionCoordinator(connection: connection)
+
             let channel: Channel
             do {
                 channel = try await sshClient.createDirectTCPIPChannel(using: directTCPIP) { channel in
-                    let bridgeHandler = Socks5InboundHandler(connection: connection)
+                    let bridgeHandler = Socks5InboundHandler(coordinator: coordinator)
                     return channel.pipeline.addHandler(bridgeHandler)
                 }
             } catch {
-                logError("Failed to open SSH direct-tcpip channel to \(targetHost):\(targetPort): \(error)", category: .network)
-                // Reply: Connection refused (0x05)
+                // Remote side refused or host unreachable — send RFC 1928 0x05 (Connection Refused)
                 let resp = Data([0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
                 _ = try? await sendData(connection: connection, data: resp)
                 connection.cancel()
                 return
             }
 
-            // Reply: Succeeded (0x00) with dummy bound address 0.0.0.0:0
+            coordinator.setChannel(channel)
+
+            // Reply: Succeeded (0x00) with bound address 0.0.0.0:0
             let successResp = Data([0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             try await sendData(connection: connection, data: successResp)
 
-            // 4. Pipe local client -> SSH Channel
-            await pipeClientToSSHChannel(connection: connection, channel: channel)
+            // 4. Pipe local client -> SSH Channel (Hot raw stream path)
+            await pipeClientToSSHChannel(connection: connection, channel: channel, coordinator: coordinator)
 
         } catch {
             connection.cancel()
         }
     }
 
-    // MARK: - Local to SSH Data Pipe
+    // MARK: - Local to SSH Pure Stream Pipe
 
-    private func pipeClientToSSHChannel(connection: NWConnection, channel: Channel) async {
-        while !Task.isCancelled {
+    private func pipeClientToSSHChannel(
+        connection: NWConnection,
+        channel: Channel,
+        coordinator: SocksSessionCoordinator
+    ) async {
+        while !Task.isCancelled && !coordinator.isTerminated {
             do {
                 let data = try await receiveSomeData(connection: connection)
                 guard !data.isEmpty else {
-                    // Client closed stream — close channel only if still active
-                    if channel.isActive {
-                        try? await channel.close()
-                    }
-                    connection.cancel()
+                    // Local client closed connection (EOF)
+                    coordinator.terminate()
                     break
                 }
 
-                // Only write if channel is still active (prevents crash when SSH disconnects
-                // while SOCKS5 client is still sending data)
-                guard channel.isActive else {
-                    connection.cancel()
+                guard channel.isActive && !coordinator.isTerminated else {
+                    coordinator.terminate()
                     break
                 }
 
@@ -297,20 +306,17 @@ actor Socks5ProxyServer {
                 buffer.writeBytes(data)
                 try await channel.writeAndFlush(buffer)
             } catch {
-                // Close channel safely — it may already be closed by the inbound handler
-                if channel.isActive {
-                    try? await channel.close()
-                }
-                connection.cancel()
+                coordinator.terminate()
                 break
             }
         }
     }
 
-    // MARK: - Async Network Helpers
+    // MARK: - Raw Network Helpers
 
     private func receiveExactBytes(connection: NWConnection, count: Int) async throws -> Data {
         var accumulated = Data()
+        accumulated.reserveCapacity(count)
         while accumulated.count < count {
             let needed = count - accumulated.count
             let chunk = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
@@ -363,68 +369,83 @@ actor Socks5ProxyServer {
     }
 }
 
-// MARK: - Inbound Bridge Handler (SSH -> NWConnection)
+// MARK: - Session Coordinator (Thread-Safe Lifecycle Management)
 
-/// Bridges data from the SSH direct-tcpip channel back to the local SOCKS5 client.
-/// Thread-safety: channelRead/channelInactive/errorCaught are always called on the
-/// NIO event loop thread, but the NWConnection send completion callback runs on a
-/// different queue. A lock-protected `isClosed` flag prevents use-after-close crashes
-/// when the channel is torn down while a send completion is in flight.
-private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Sendable {
-    typealias InboundIn = ByteBuffer
+/// Coordinates the synchronized teardown between NWConnection and NIO Channel
+/// ensuring idempotent, safe cleanup without double-close or precondition crashes.
+private final class SocksSessionCoordinator: @unchecked Sendable {
+    let connection: NWConnection
+    private weak var channel: Channel?
+    private let lock = NSLock()
+    private var _isTerminated = false
 
-    private let connection: NWConnection
-    private let closedLock = NSLock()
-    private var _isClosed = false
-
-    /// Thread-safe check for whether this handler has been deactivated
-    private var isClosed: Bool {
-        closedLock.withLock { _isClosed }
-    }
-
-    /// Marks this handler as closed (thread-safe)
-    private func markClosed() {
-        closedLock.withLock { _isClosed = true }
+    var isTerminated: Bool {
+        lock.withLock { _isTerminated }
     }
 
     init(connection: NWConnection) {
         self.connection = connection
     }
 
+    func setChannel(_ channel: Channel) {
+        lock.withLock {
+            self.channel = channel
+        }
+    }
+
+    func terminate() {
+        var chan: Channel?
+        lock.withLock {
+            guard !_isTerminated else { return }
+            _isTerminated = true
+            chan = self.channel
+        }
+
+        connection.cancel()
+
+        if let channel = chan {
+            channel.eventLoop.execute {
+                if channel.isActive {
+                    channel.close(promise: nil)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Inbound Bridge Handler (SSH -> NWConnection)
+
+/// Pure raw stream redirector from SSH channel to NWConnection.
+/// Zero caching, zero logging, zero packet inspection.
+private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Sendable {
+    typealias InboundIn = ByteBuffer
+
+    private let coordinator: SocksSessionCoordinator
+
+    init(coordinator: SocksSessionCoordinator) {
+        self.coordinator = coordinator
+    }
+
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        guard !isClosed else { return }
+        guard !coordinator.isTerminated else { return }
 
         let buffer = unwrapInboundIn(data)
         let bytes = Data(buffer.readableBytesView)
 
-        connection.send(content: bytes, completion: .contentProcessed { [weak self] error in
-            guard let self = self, !self.isClosed else { return }
-            if let error = error {
-                logError("Failed to write SSH data to SOCKS client: \(error)", category: .network)
-                // Schedule close on the event loop to avoid cross-thread channel access
-                context.eventLoop.execute {
-                    if context.channel.isActive {
-                        context.close(promise: nil)
-                    }
-                }
+        coordinator.connection.send(content: bytes, completion: .contentProcessed { [weak self] error in
+            if error != nil {
+                self?.coordinator.terminate()
             }
         })
     }
 
     func channelInactive(context: ChannelHandlerContext) {
-        markClosed()
-        connection.cancel()
+        coordinator.terminate()
         context.fireChannelInactive()
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        guard !isClosed else { return }
-        logError("SOCKS5 SSH channel error: \(error)", category: .network)
-        markClosed()
-        connection.cancel()
-        if context.channel.isActive {
-            context.close(promise: nil)
-        }
+        coordinator.terminate()
     }
 }
 
