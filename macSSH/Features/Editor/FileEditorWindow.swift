@@ -51,8 +51,11 @@ struct FileEditorWindow: View {
         }
         .frame(minWidth: WindowSize.fileEditor.width, minHeight: WindowSize.fileEditor.height)
         .onDisappear {
+            let vm = viewModel
+            viewModel = nil
             Task {
-                await viewModel?.cleanup()
+                await vm?.cleanup()
+                WindowManager.shared.removeFileEditorData(for: windowId)
             }
         }
     }

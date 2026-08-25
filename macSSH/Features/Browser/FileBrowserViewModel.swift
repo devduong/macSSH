@@ -288,10 +288,29 @@ final class FileBrowserViewModel {
     func disconnect() async {
         // Stop all external editing file watchers
         ExternalEditorService.shared.closeAllSessions()
+
+        // Cancel all ongoing transfer tasks
+        for (_, task) in transferTasks {
+            task.cancel()
+        }
+        transferTasks.removeAll()
+
+        // Purge transfer and log memory
+        activeTransfers.removeAll()
+        recentTransfers.removeAll()
+        activityLogs.removeAll()
+        draggedRemoteFiles.removeAll()
+        selectedFiles.removeAll()
+        files.removeAll()
+
+        // Purge local browser state memory
+        localState.files.removeAll()
+        localState.selectedFileIds.removeAll()
+
+        // Disconnect SFTP network session & release event loop threads
         await sftpSession.disconnect()
         isConnected = false
         ConnectionSessionManager.shared.markDisconnected(for: connection.id)
-        files = []
         currentPath = "/"
         navigationService.reset()
     }

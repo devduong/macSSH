@@ -137,6 +137,18 @@ struct NativeFileTableView: NSViewRepresentable {
         }
     }
 
+    static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
+        if let tableView = scrollView.documentView as? NSTableView {
+            tableView.delegate = nil
+            tableView.dataSource = nil
+            tableView.target = nil
+            if let ctxTable = tableView as? ContextMenuTableView {
+                ctxTable.contextMenuDelegate = nil
+            }
+        }
+        coordinator.cleanup()
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             viewModel: viewModel,
@@ -149,7 +161,7 @@ struct NativeFileTableView: NSViewRepresentable {
 
     @MainActor
     class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSFilePromiseProviderDelegate, ContextMenuTableViewDelegate {
-        var viewModel: FileBrowserViewModel
+        var viewModel: FileBrowserViewModel?
         var files: [RemoteFile]
         var onDoubleClick: (RemoteFile) -> Void
         var onGetInfo: (RemoteFile) -> Void
@@ -160,6 +172,14 @@ struct NativeFileTableView: NSViewRepresentable {
         // Track files being dragged for file promise
         private var draggedFiles: [RemoteFile] = []
         private let filePromiseQueue = OperationQueue()
+
+        func cleanup() {
+            files.removeAll()
+            draggedFiles.removeAll()
+            filePromiseQueue.cancelAllOperations()
+            viewModel = nil
+            tableView = nil
+        }
 
         init(
             viewModel: FileBrowserViewModel,
@@ -229,7 +249,7 @@ struct NativeFileTableView: NSViewRepresentable {
         }
 
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !isUpdating, let tableView = tableView else { return }
+            guard !isUpdating, let tableView = tableView, let viewModel = viewModel else { return }
             let selectedIndexes = tableView.selectedRowIndexes
             var newSelection = Set<UUID>()
             for index in selectedIndexes {
@@ -241,7 +261,8 @@ struct NativeFileTableView: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
-            guard let sortDescriptor = tableView.sortDescriptors.first,
+            guard let viewModel = viewModel,
+                  let sortDescriptor = tableView.sortDescriptors.first,
                   let key = sortDescriptor.key else { return }
 
             switch key {
@@ -285,7 +306,7 @@ struct NativeFileTableView: NSViewRepresentable {
                 guard index < files.count else { return nil }
                 return files[index]
             }
-            viewModel.draggedRemoteFiles = draggedFiles
+            viewModel?.draggedRemoteFiles = draggedFiles
 
             // Also write serialized remote files to pasteboard for in-app drops
             if let jsonData = try? JSONEncoder().encode(draggedFiles) {
@@ -295,7 +316,7 @@ struct NativeFileTableView: NSViewRepresentable {
 
         func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
             draggedFiles = []
-            viewModel.draggedRemoteFiles = []
+            viewModel?.draggedRemoteFiles = []
         }
 
         // MARK: - NSFilePromiseProviderDelegate
@@ -315,7 +336,11 @@ struct NativeFileTableView: NSViewRepresentable {
                 return
             }
 
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self = self, let viewModel = self.viewModel else {
+                    completionHandler(nil)
+                    return
+                }
                 do {
                     try await viewModel.downloadFileToURL(file, destinationURL: url)
                     completionHandler(nil)
@@ -332,27 +357,15 @@ struct NativeFileTableView: NSViewRepresentable {
         // MARK: - Drop IN (Upload & Move)
 
         func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
-            let isFinderDrag = info.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
-            let isInternalDrag = !draggedFiles.isEmpty
+            let pasteboard = info.draggingPasteboard
 
-            guard isFinderDrag || isInternalDrag else { return [] }
-
-            // Hovering over a specific directory row -> Drop into that folder
-            if row >= 0 && row < files.count {
-                let targetFile = files[row]
-                if targetFile.isDirectory {
-                    // Prevent moving a directory into itself
-                    if isInternalDrag && draggedFiles.contains(where: { $0.path == targetFile.path }) {
-                        return []
-                    }
-                    tableView.setDropRow(row, dropOperation: .on)
-                    return isInternalDrag ? .move : .copy
-                }
+            // Check for internal remote files
+            if pasteboard.types?.contains(.remoteFiles) == true {
+                return .move
             }
 
-            // Drop on table background (current directory)
-            if isFinderDrag {
-                tableView.setDropRow(-1, dropOperation: .on)
+            // Check for file URLs from Finder
+            if pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) {
                 return .copy
             }
 
@@ -360,6 +373,7 @@ struct NativeFileTableView: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
+            guard let viewModel = viewModel else { return false }
             let targetDir: String = {
                 if row >= 0 && row < files.count && files[row].isDirectory {
                     return files[row].path
@@ -371,8 +385,8 @@ struct NativeFileTableView: NSViewRepresentable {
             if !draggedFiles.isEmpty {
                 let filesToMove = draggedFiles
                 draggedFiles = []
-                Task { @MainActor in
-                    await viewModel.moveFiles(filesToMove, to: targetDir)
+                Task { @MainActor [weak viewModel] in
+                    await viewModel?.moveFiles(filesToMove, to: targetDir)
                 }
                 return true
             }
@@ -386,8 +400,8 @@ struct NativeFileTableView: NSViewRepresentable {
 
                 guard !validURLs.isEmpty else { return false }
 
-                Task { @MainActor in
-                    await viewModel.uploadDroppedFiles(validURLs, to: targetDir)
+                Task { @MainActor [weak viewModel] in
+                    await viewModel?.uploadDroppedFiles(validURLs, to: targetDir)
                 }
                 return true
             }
@@ -454,7 +468,7 @@ extension NativeFileTableView.Coordinator {
         cutItem.image = NSImage(systemSymbolName: "scissors", accessibilityDescription: nil)
         menu.addItem(cutItem)
 
-        if viewModel.canPaste {
+        if viewModel?.canPaste == true {
             let pasteItem = NSMenuItem(title: L10n.tr("paste"), action: #selector(handlePaste(_:)), keyEquivalent: "")
             pasteItem.target = self
             pasteItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
@@ -515,8 +529,8 @@ extension NativeFileTableView.Coordinator {
 
     @objc func handleOpenWithDefaultApp(_ sender: NSMenuItem) {
         guard let file = sender.representedObject as? RemoteFile else { return }
-        Task { @MainActor in
-            await viewModel.openWithExternalApp(file)
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.openWithExternalApp(file)
         }
     }
 
@@ -524,37 +538,37 @@ extension NativeFileTableView.Coordinator {
         guard let info = sender.representedObject as? [String: Any],
               let file = info["file"] as? RemoteFile,
               let appURL = info["appURL"] as? URL else { return }
-        Task { @MainActor in
-            await viewModel.openWithSpecificApp(file, applicationURL: appURL)
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.openWithSpecificApp(file, applicationURL: appURL)
         }
     }
 
     @objc func handleCopy(_ sender: NSMenuItem) {
-        guard let file = sender.representedObject as? RemoteFile else { return }
+        guard let file = sender.representedObject as? RemoteFile, let viewModel = viewModel else { return }
         viewModel.selectedFiles = [file.id]
         viewModel.copySelectedFiles()
     }
 
     @objc func handleCut(_ sender: NSMenuItem) {
-        guard let file = sender.representedObject as? RemoteFile else { return }
+        guard let file = sender.representedObject as? RemoteFile, let viewModel = viewModel else { return }
         viewModel.selectedFiles = [file.id]
         viewModel.cutSelectedFiles()
     }
 
     @objc func handlePaste(_ sender: NSMenuItem) {
-        Task { @MainActor in
-            await viewModel.paste()
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.paste()
         }
     }
 
     @objc func handleRename(_ sender: NSMenuItem) {
         guard let file = sender.representedObject as? RemoteFile else { return }
-        viewModel.startRename(file)
+        viewModel?.startRename(file)
     }
 
     @objc func handleMoveTo(_ sender: NSMenuItem) {
         guard let file = sender.representedObject as? RemoteFile else { return }
-        viewModel.requestMove(file)
+        viewModel?.requestMove(file)
     }
 
     @objc func handleGetInfo(_ sender: NSMenuItem) {
@@ -564,20 +578,20 @@ extension NativeFileTableView.Coordinator {
 
     @objc func handleDownloadToLocalPane(_ sender: NSMenuItem) {
         guard let file = sender.representedObject as? RemoteFile else { return }
-        Task { @MainActor in
-            await viewModel.downloadRemoteFileToLocalPane(file)
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.downloadRemoteFileToLocalPane(file)
         }
     }
 
     @objc func handleDownload(_ sender: NSMenuItem) {
         guard let file = sender.representedObject as? RemoteFile else { return }
-        Task { @MainActor in
-            await viewModel.downloadFile(file)
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.downloadFile(file)
         }
     }
 
     @objc func handleDelete(_ sender: NSMenuItem) {
-        guard let file = sender.representedObject as? RemoteFile else { return }
+        guard let file = sender.representedObject as? RemoteFile, let viewModel = viewModel else { return }
         // If the right-clicked file is part of a multi-selection, delete all selected files
         if viewModel.selectedFiles.contains(file.id) && viewModel.selectedFiles.count > 1 {
             viewModel.confirmDeleteSelected()

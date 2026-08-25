@@ -41,6 +41,14 @@ struct TerminalWindow: View {
             }
         }
         .frame(minWidth: WindowSize.minTerminal.width, minHeight: WindowSize.minTerminal.height)
+        .onDisappear {
+            let vm = viewModel
+            viewModel = nil
+            Task {
+                await vm?.disconnect()
+                WindowManager.shared.removeTerminalData(for: windowId)
+            }
+        }
     }
 
     @MainActor

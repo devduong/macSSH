@@ -105,6 +105,15 @@ struct LocalFileTableView: NSViewRepresentable {
         }
     }
 
+    static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
+        if let tableView = scrollView.documentView as? NSTableView {
+            tableView.delegate = nil
+            tableView.dataSource = nil
+            tableView.target = nil
+        }
+        coordinator.cleanup()
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(state: state, onUpload: onUpload, onNavigate: onNavigate, onDropRemoteFiles: onDropRemoteFiles)
     }
@@ -113,12 +122,20 @@ struct LocalFileTableView: NSViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource {
-        var state: LocalFileBrowserState
+        weak var state: LocalFileBrowserState?
         var onUpload: (RemoteFile) -> Void
         var onNavigate: (URL) -> Void
         var onDropRemoteFiles: ((URL, [RemoteFile]) -> Void)?
         weak var tableView: NSTableView?
         var isUpdating: Bool = false
+
+        func cleanup() {
+            state = nil
+            tableView = nil
+            onUpload = { _ in }
+            onNavigate = { _ in }
+            onDropRemoteFiles = nil
+        }
 
         init(state: LocalFileBrowserState, onUpload: @escaping (RemoteFile) -> Void, onNavigate: @escaping (URL) -> Void, onDropRemoteFiles: ((URL, [RemoteFile]) -> Void)? = nil) {
             self.state = state
@@ -128,11 +145,11 @@ struct LocalFileTableView: NSViewRepresentable {
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int {
-            state.files.count
+            state?.files.count ?? 0
         }
 
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            guard row < state.files.count else { return nil }
+            guard let state = state, row < state.files.count else { return nil }
             let file = state.files[row]
             let columnId = tableColumn?.identifier.rawValue ?? ""
             let cellId = NSUserInterfaceItemIdentifier("LocalCell_\(columnId)")
@@ -180,7 +197,7 @@ struct LocalFileTableView: NSViewRepresentable {
         }
 
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !isUpdating, let tableView = notification.object as? NSTableView else { return }
+            guard !isUpdating, let state = state, let tableView = notification.object as? NSTableView else { return }
             let selectedIndexes = tableView.selectedRowIndexes
             var newSelectedIds = Set<UUID>()
             for index in selectedIndexes {
@@ -193,7 +210,7 @@ struct LocalFileTableView: NSViewRepresentable {
 
         @objc func onDoubleClicked(_ sender: NSTableView) {
             let row = sender.clickedRow
-            guard row >= 0, row < state.files.count else { return }
+            guard let state = state, row >= 0, row < state.files.count else { return }
             let file = state.files[row]
 
             if file.isDirectory {
@@ -208,7 +225,7 @@ struct LocalFileTableView: NSViewRepresentable {
         // MARK: - Drag & Drop Source (Local files dragged out)
 
         func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
-            guard row < state.files.count else { return nil }
+            guard let state = state, row < state.files.count else { return nil }
             let file = state.files[row]
             return NSURL(fileURLWithPath: file.path)
         }
@@ -216,6 +233,7 @@ struct LocalFileTableView: NSViewRepresentable {
         // MARK: - Drag & Drop Destination (Remote files or Finder files dropped into Local pane)
 
         func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
+            guard let state = state else { return [] }
             // Check if this is an internal remote file drag
             let isRemoteFileDrag = info.draggingPasteboard.data(forType: .remoteFiles) != nil
             let isFinderDrag = info.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
@@ -233,6 +251,7 @@ struct LocalFileTableView: NSViewRepresentable {
                 return []
             }
 
+            // Hovering over a directory row -> Drop into that folder
             if row >= 0 && row < state.files.count {
                 let targetFile = state.files[row]
                 if targetFile.isDirectory {
@@ -241,50 +260,60 @@ struct LocalFileTableView: NSViewRepresentable {
                 }
             }
 
+            // Drop on table background (current directory)
             tableView.setDropRow(-1, dropOperation: .on)
             return .copy
         }
 
         func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
-            let targetURL: URL = {
+            guard let state = state else { return false }
+            // Determine destination directory URL
+            let destinationURL: URL = {
                 if row >= 0 && row < state.files.count && state.files[row].isDirectory {
                     return URL(fileURLWithPath: state.files[row].path)
                 }
                 return state.currentURL
             }()
 
-            // 1. Priority: Handle in-app remote file drag via custom pasteboard type
-            if let jsonData = info.draggingPasteboard.data(forType: .remoteFiles),
-               let remoteFiles = try? JSONDecoder().decode([RemoteFile].self, from: jsonData),
-               !remoteFiles.isEmpty,
-               let handler = onDropRemoteFiles {
-                handler(targetURL, remoteFiles)
+            // 1. Handle Remote Files drop (download to local directory)
+            if let remoteData = info.draggingPasteboard.data(forType: .remoteFiles),
+               let remoteFiles = try? JSONDecoder().decode([RemoteFile].self, from: remoteData),
+               !remoteFiles.isEmpty {
+                onDropRemoteFiles?(destinationURL, remoteFiles)
                 return true
             }
 
-            // 2. Handle NSFilePromiseReceiver (dragged from external app)
-            if let filePromises = info.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver], !filePromises.isEmpty {
-                for promise in filePromises {
-                    promise.receivePromisedFiles(atDestination: targetURL, options: [:], operationQueue: OperationQueue.main) { _, _ in
-                        Task { @MainActor [weak self] in
-                            await self?.state.loadFiles(silent: true)
+            // 2. Handle NSFilePromiseReceiver (drag from remote file table via promise)
+            if let receivers = info.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
+               !receivers.isEmpty {
+                let dropOperationQueue = OperationQueue()
+                dropOperationQueue.qualityOfService = .userInitiated
+                for receiver in receivers {
+                    receiver.receivePromisedFiles(atDestination: destinationURL, options: [:], operationQueue: dropOperationQueue) { [weak self] fileURL, error in
+                        if error == nil {
+                            Task { @MainActor [weak self] in
+                                await self?.state?.loadFiles(silent: true)
+                            }
                         }
                     }
                 }
                 return true
             }
 
-            // 3. Handle file URLs (e.g. dragged from Finder)
-            if let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+            // 3. Handle Finder file drop (copy local files into the target folder)
+            if let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+                let validURLs = urls.filter { url in
+                    var isDir: ObjCBool = false
+                    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                }
+                guard !validURLs.isEmpty else { return false }
+
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    for url in urls {
-                        let dest = targetURL.appendingPathComponent(url.lastPathComponent)
-                        if url != dest {
-                            try? FileManager.default.copyItem(at: url, to: dest)
-                        }
+                    for url in validURLs {
+                        let dest = destinationURL.appendingPathComponent(url.lastPathComponent)
+                        try? FileManager.default.copyItem(at: url, to: dest)
                     }
-                    await self.state.loadFiles(silent: true)
+                    await self?.state?.loadFiles(silent: true)
                 }
                 return true
             }
@@ -295,7 +324,8 @@ struct LocalFileTableView: NSViewRepresentable {
         // MARK: - Sort
 
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
-            guard let sortDescriptor = tableView.sortDescriptors.first,
+            guard let state = state,
+                  let sortDescriptor = tableView.sortDescriptors.first,
                   let key = sortDescriptor.key else { return }
 
             switch key {
@@ -318,18 +348,19 @@ final class LocalContextMenuTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
 
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else {
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else {
             return super.menu(for: event)
         }
 
         let menu = NSMenu()
 
-        if row >= 0, row < coordinator.state.files.count {
+        if row >= 0, row < state.files.count {
             if !selectedRowIndexes.contains(row) {
                 selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             }
 
-            let file = coordinator.state.files[row]
+            let file = state.files[row]
 
             if !file.isDirectory {
                 let uploadItem = NSMenuItem(
@@ -424,15 +455,17 @@ final class LocalContextMenuTableView: NSTableView {
     }
 
     @objc private func handleUpload(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        for file in coordinator.state.selectedFiles where !file.isDirectory {
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        for file in state.selectedFiles where !file.isDirectory {
             coordinator.onUpload(file)
         }
     }
 
     @objc private func handleOpenWithDefaultApp(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        for file in coordinator.state.selectedFiles where !file.isDirectory {
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        for file in state.selectedFiles where !file.isDirectory {
             let url = URL(fileURLWithPath: file.path)
             NSWorkspace.shared.open(url)
         }
@@ -441,17 +474,19 @@ final class LocalContextMenuTableView: NSTableView {
     @objc private func handleOpenWithSpecificApp(_ sender: Any) {
         guard let menuItem = sender as? NSMenuItem,
               let appURL = menuItem.representedObject as? URL,
-              let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
+              let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
         let config = NSWorkspace.OpenConfiguration()
-        for file in coordinator.state.selectedFiles where !file.isDirectory {
+        for file in state.selectedFiles where !file.isDirectory {
             let fileURL = URL(fileURLWithPath: file.path)
             NSWorkspace.shared.open([fileURL], withApplicationAt: appURL, configuration: config)
         }
     }
 
     @objc private func handleShowInFinder(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        for file in coordinator.state.selectedFiles {
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        for file in state.selectedFiles {
             let url = URL(fileURLWithPath: file.path)
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }
@@ -459,26 +494,30 @@ final class LocalContextMenuTableView: NSTableView {
 
     @objc private func handleRename(_ sender: Any) {
         guard let coordinator = delegate as? LocalFileTableView.Coordinator,
-              let first = coordinator.state.selectedFiles.first else { return }
-        coordinator.state.fileToRename = first
-        coordinator.state.isShowingRenameSheet = true
+              let state = coordinator.state,
+              let first = state.selectedFiles.first else { return }
+        state.fileToRename = first
+        state.isShowingRenameSheet = true
     }
 
     @objc private func handleDelete(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        let selected = coordinator.state.selectedFiles
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        let selected = state.selectedFiles
         guard !selected.isEmpty else { return }
-        coordinator.state.filesToDelete = selected
-        coordinator.state.isShowingDeleteConfirmation = true
+        state.filesToDelete = selected
+        state.isShowingDeleteConfirmation = true
     }
 
     @objc private func handleNewFolder(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        coordinator.state.isShowingNewFolderSheet = true
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        state.isShowingNewFolderSheet = true
     }
 
     @objc private func handleRefresh(_ sender: Any) {
-        guard let coordinator = delegate as? LocalFileTableView.Coordinator else { return }
-        Task { await coordinator.state.refresh() }
+        guard let coordinator = delegate as? LocalFileTableView.Coordinator,
+              let state = coordinator.state else { return }
+        Task { await state.refresh() }
     }
 }

@@ -628,17 +628,29 @@ struct SwiftTermView: NSViewRepresentable {
         context.coordinator.viewModel = viewModel
     }
 
+    static func dismantleNSView(_ terminal: DirectInputTerminalView, coordinator: Coordinator) {
+        terminal.terminalDelegate = nil
+        coordinator.viewModel?.onOutput = nil
+        coordinator.cleanup()
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(viewModel: viewModel)
     }
 
     @MainActor
     class Coordinator: NSObject, @preconcurrency TerminalViewDelegate {
-        var viewModel: TerminalViewModel
+        weak var viewModel: TerminalViewModel?
         weak var terminal: TerminalView?
 
         init(viewModel: TerminalViewModel) {
             self.viewModel = viewModel
+        }
+
+        func cleanup() {
+            viewModel?.onOutput = nil
+            viewModel = nil
+            terminal = nil
         }
 
         /// Direct output delivery to SwiftTerm — no timer delay
@@ -650,8 +662,8 @@ struct SwiftTermView: NSViewRepresentable {
 
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
             guard newCols > 0, newRows > 0 else { return }
-            Task { @MainActor in
-                viewModel.resize(columns: newCols, rows: newRows)
+            Task { @MainActor [weak self] in
+                self?.viewModel?.resize(columns: newCols, rows: newRows)
             }
         }
 
@@ -661,7 +673,7 @@ struct SwiftTermView: NSViewRepresentable {
 
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
             let dataToSend = Data(data)
-            viewModel.sendInput(dataToSend)
+            viewModel?.sendInput(dataToSend)
         }
 
         func scrolled(source: TerminalView, position: Double) {}
