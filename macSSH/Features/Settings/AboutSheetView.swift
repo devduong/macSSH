@@ -10,14 +10,6 @@ import SwiftUI
 struct AboutSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
-    var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-    }
-
-    var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-    }
-
     var body: some View {
         VStack(spacing: 16) {
             // App Icon
@@ -28,11 +20,11 @@ struct AboutSheetView: View {
 
             // App Name & Version
             VStack(spacing: 4) {
-                Text("macSSH")
+                Text(AppVersion.appName)
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("Version \(appVersion) (\(buildNumber))")
+                Text("Version \(AppVersion.version) (\(AppVersion.buildNumber))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

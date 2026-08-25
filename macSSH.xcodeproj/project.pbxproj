@@ -254,12 +254,12 @@
 			);
 			inputPaths = (
 			);
-			name = "Stamp Version from Git Tag";
+			name = "Stamp Version from .env / Git";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "#!/bin/bash\n# Auto-version from git tags\n# CI can override via MACSSH_VERSION / MACSSH_BUILD_NUMBER env vars\n\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n\nif [ ! -f \"$PLIST\" ]; then\n    echo \"warning: Info.plist not found at $PLIST, skipping version stamp\"\n    exit 0\nfi\n\n# --- Marketing version ---\nif [ -n \"$MACSSH_VERSION\" ]; then\n    VERSION=\"$MACSSH_VERSION\"\nelse\n    VERSION=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null | sed 's/^v//')\nfi\n\nif [ -n \"$VERSION\" ] && echo \"$VERSION\" | grep -qE '^[0-9]+\\.[0-9]+\\.[0-9]+$'; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n    echo \"Stamped marketing version: $VERSION\"\nelse\n    echo \"warning: Could not determine version from git tag, keeping plist default\"\nfi\n\n# --- Build number ---\nif [ -n \"$MACSSH_BUILD_NUMBER\" ]; then\n    BUILD=\"$MACSSH_BUILD_NUMBER\"\nelse\n    BUILD=$(date +%m%d%Y)\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\necho \"Stamped build number: $BUILD\"\n";
+			shellScript = "#!/bin/bash\n# Auto-version from .env or AppVersion.swift\n\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n\nif [ ! -f \"$PLIST\" ]; then\n    echo \"warning: Info.plist not found at $PLIST, skipping version stamp\"\n    exit 0\nfi\n\n# 1. Read from .env if available\nENV_FILE=\"${SRCROOT}/.env\"\nif [ -f \"$ENV_FILE\" ]; then\n    while IFS='=' read -r key val || [ -n \"$key\" ]; do\n        [[ \"$key\" =~ ^[[:space:]]*# ]] && continue\n        [[ -z \"$key\" ]] && continue\n        key=$(echo \"$key\" | tr -d '[:space:]')\n        val=$(echo \"$val\" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\"//' -e 's/\"$//' -e \"s/^'//\" -e \"s/'$//\")\n        export \"$key=$val\"\n    done < \"$ENV_FILE\"\nfi\n\nCONFIG_FILE=\"${SRCROOT}/macSSH/Core/AppVersion.swift\"\nif [ -f \"$CONFIG_FILE\" ] && [ -n \"$APP_VERSION\" ]; then\n    sed -i '' -E \"s/(static let version = \\\")[^\\\"]*(\\\")/\\1$APP_VERSION\\2/\" \"$CONFIG_FILE\"\n    [ -n \"$APP_NAME\" ] && sed -i '' -E \"s/(static let appName = \\\")[^\\\"]*(\\\")/\\1$APP_NAME\\2/\" \"$CONFIG_FILE\"\n    [ -n \"$BUILD_NUMBER\" ] && sed -i '' -E \"s/(static let buildNumber = \\\")[^\\\"]*(\\\")/\\1$BUILD_NUMBER\\2/\" \"$CONFIG_FILE\"\n    [ -n \"$ARCHITECTURE\" ] && sed -i '' -E \"s/(static let architecture = \\\")[^\\\"]*(\\\")/\\1$ARCHITECTURE\\2/\" \"$CONFIG_FILE\"\nfi\n\n# --- Marketing version ---\nif [ -n \"$APP_VERSION\" ]; then\n    VERSION=\"$APP_VERSION\"\nelif [ -n \"$MACSSH_VERSION\" ]; then\n    VERSION=\"$MACSSH_VERSION\"\nelif [ -f \"$CONFIG_FILE\" ]; then\n    VERSION=$(grep -E 'static let version\\s*=' \"$CONFIG_FILE\" | head -n1 | sed -E 's/.*\"([^\"]+)\".*/\\1/')\nelse\n    VERSION=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null | sed 's/^v//')\nfi\n\nif [ -n \"$VERSION\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n    echo \"Stamped marketing version: $VERSION\"\nfi\n\n# --- Build number ---\nif [ -n \"$BUILD_NUMBER\" ]; then\n    BUILD=\"$BUILD_NUMBER\"\nelif [ -n \"$MACSSH_BUILD_NUMBER\" ]; then\n    BUILD=\"$MACSSH_BUILD_NUMBER\"\nelif [ -f \"$CONFIG_FILE\" ]; then\n    BUILD=$(grep -E 'static let buildNumber\\s*=' \"$CONFIG_FILE\" | head -n1 | sed -E 's/.*\"([^\"]+)\".*/\\1/')\nelse\n    BUILD=\"1\"\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\necho \"Stamped build number: $BUILD\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -494,7 +494,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.7;
+				MARKETING_VERSION = 0.2.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSH;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -542,7 +542,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.7;
+				MARKETING_VERSION = 0.2.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.devduong.macSSH;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

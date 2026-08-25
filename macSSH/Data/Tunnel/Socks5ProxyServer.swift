@@ -278,8 +278,17 @@ actor Socks5ProxyServer {
             do {
                 let data = try await receiveSomeData(connection: connection)
                 guard !data.isEmpty else {
-                    // Client closed stream
-                    try? await channel.close()
+                    // Client closed stream — close channel only if still active
+                    if channel.isActive {
+                        try? await channel.close()
+                    }
+                    connection.cancel()
+                    break
+                }
+
+                // Only write if channel is still active (prevents crash when SSH disconnects
+                // while SOCKS5 client is still sending data)
+                guard channel.isActive else {
                     connection.cancel()
                     break
                 }
@@ -288,7 +297,10 @@ actor Socks5ProxyServer {
                 buffer.writeBytes(data)
                 try await channel.writeAndFlush(buffer)
             } catch {
-                try? await channel.close()
+                // Close channel safely — it may already be closed by the inbound handler
+                if channel.isActive {
+                    try? await channel.close()
+                }
                 connection.cancel()
                 break
             }
@@ -353,37 +365,66 @@ actor Socks5ProxyServer {
 
 // MARK: - Inbound Bridge Handler (SSH -> NWConnection)
 
+/// Bridges data from the SSH direct-tcpip channel back to the local SOCKS5 client.
+/// Thread-safety: channelRead/channelInactive/errorCaught are always called on the
+/// NIO event loop thread, but the NWConnection send completion callback runs on a
+/// different queue. A lock-protected `isClosed` flag prevents use-after-close crashes
+/// when the channel is torn down while a send completion is in flight.
 private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = ByteBuffer
 
     private let connection: NWConnection
+    private let closedLock = NSLock()
+    private var _isClosed = false
+
+    /// Thread-safe check for whether this handler has been deactivated
+    private var isClosed: Bool {
+        closedLock.withLock { _isClosed }
+    }
+
+    /// Marks this handler as closed (thread-safe)
+    private func markClosed() {
+        closedLock.withLock { _isClosed = true }
+    }
 
     init(connection: NWConnection) {
         self.connection = connection
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        guard !isClosed else { return }
+
         let buffer = unwrapInboundIn(data)
-        let data = Data(buffer.readableBytesView)
+        let bytes = Data(buffer.readableBytesView)
 
-        connection.send(content: data, completion: .contentProcessed { error in
-
+        connection.send(content: bytes, completion: .contentProcessed { [weak self] error in
+            guard let self = self, !self.isClosed else { return }
             if let error = error {
                 logError("Failed to write SSH data to SOCKS client: \(error)", category: .network)
-                context.close(promise: nil)
+                // Schedule close on the event loop to avoid cross-thread channel access
+                context.eventLoop.execute {
+                    if context.channel.isActive {
+                        context.close(promise: nil)
+                    }
+                }
             }
         })
     }
 
     func channelInactive(context: ChannelHandlerContext) {
+        markClosed()
         connection.cancel()
         context.fireChannelInactive()
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
+        guard !isClosed else { return }
         logError("SOCKS5 SSH channel error: \(error)", category: .network)
+        markClosed()
         connection.cancel()
-        context.close(promise: nil)
+        if context.channel.isActive {
+            context.close(promise: nil)
+        }
     }
 }
 

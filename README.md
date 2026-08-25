@@ -17,7 +17,6 @@
   <img src="https://img.shields.io/badge/Swift-5.9%2B%20%7C%206.0-orange?style=flat-square&logo=swift" alt="Swift 5.9+ / 6.0"/>
   <img src="https://img.shields.io/badge/Architecture-Universal%20(arm64%20%2B%20x86__64)-purple?style=flat-square" alt="Universal Binary"/>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License MIT"/></a>
-  <a href="https://github.com/devduong/macSSH/releases"><img src="https://img.shields.io/badge/Version-0.2.7-007acc?style=flat-square" alt="Version"/></a>
 </p>
 
 ---
