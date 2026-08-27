@@ -20,6 +20,13 @@ actor SFTPSession: SFTPSessionProtocol {
 
     init() {}
 
+    deinit {
+        let tunnel = socksTunnel
+        Task {
+            await tunnel?.stop()
+        }
+    }
+
     // MARK: - Connection
 
     func connect(

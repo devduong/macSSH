@@ -37,6 +37,19 @@ actor NativeTerminalSession: TerminalSessionProtocol {
 
     init() {}
 
+    deinit {
+        if childPid > 0 {
+            NativeProcessRegistry.shared.terminate(pid: childPid)
+        }
+        if masterFd >= 0 {
+            close(masterFd)
+        }
+        let tunnel = socksTunnel
+        Task {
+            await tunnel?.stop()
+        }
+    }
+
     // MARK: - Connect with Password
 
     func connect(
@@ -178,6 +191,7 @@ actor NativeTerminalSession: TerminalSessionProtocol {
         // Parent process
         self.masterFd = master
         self.childPid = pid
+        NativeProcessRegistry.shared.register(pid: pid, description: "Terminal SSH Process")
 
         // If password auth, wait briefly for password prompt then send password
         if let password = password, !password.isEmpty {
@@ -284,9 +298,7 @@ actor NativeTerminalSession: TerminalSessionProtocol {
         }
 
         if childPid > 0 {
-            kill(childPid, SIGHUP)
-            var status: Int32 = 0
-            waitpid(childPid, &status, 0)
+            NativeProcessRegistry.shared.terminate(pid: childPid)
             childPid = -1
         }
 

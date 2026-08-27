@@ -38,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Clean up any leftover temporary terminal scripts from previous sessions
+        // Clean up any leftover orphan ssh/socks processes and scripts from previous sessions/crashes
+        NativeProcessRegistry.shared.cleanupOrphanProcesses()
         TerminalLauncherService.cleanupOldScripts()
 
         // Auto-load the last opened config file if it exists
@@ -135,14 +136,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func performTerminationCleanup() async {
-        logInfo("Application terminating, closing all active SSH connections...", category: .app)
+        logInfo("Application terminating, closing all active SSH connections and SOCKS tunnels...", category: .app)
         TerminalLauncherService.cleanupOldScripts()
         await ConnectionSessionManager.shared.disconnectAll()
+        NativeProcessRegistry.shared.terminateAll()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Cleanup is handled in applicationShouldTerminate
-        // This is kept as a safety net for forced terminations
+        NativeProcessRegistry.shared.terminateAll()
     }
 }
 

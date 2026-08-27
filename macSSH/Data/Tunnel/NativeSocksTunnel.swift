@@ -26,7 +26,7 @@ actor NativeSocksTunnel {
 
     deinit {
         if childPid > 0 {
-            kill(childPid, SIGTERM)
+            NativeProcessRegistry.shared.terminate(pid: childPid)
         }
         if masterFd >= 0 {
             close(masterFd)
@@ -88,6 +88,7 @@ actor NativeSocksTunnel {
         self.masterFd = master
         self.childPid = pid
         self.isRunning = true
+        NativeProcessRegistry.shared.register(pid: pid, description: "SOCKS5 Tunnel :\(socksPort)")
 
         // Set non-blocking on master FD so reads don't hang
         let flags = fcntl(master, F_GETFL, 0)
@@ -215,18 +216,7 @@ actor NativeSocksTunnel {
         readTask = nil
 
         if childPid > 0 {
-            // Send SIGTERM first for graceful exit
-            kill(childPid, SIGTERM)
-
-            // Wait briefly then force kill if needed
-            let pid = childPid
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0) {
-                var status: Int32 = 0
-                if waitpid(pid, &status, WNOHANG) == 0 {
-                    kill(pid, SIGKILL)
-                    waitpid(pid, &status, 0)
-                }
-            }
+            NativeProcessRegistry.shared.terminate(pid: childPid)
             childPid = -1
         }
 
