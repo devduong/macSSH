@@ -197,6 +197,11 @@ public enum L10n_RU {
         "developer": "Разработчик:",
         "repository": "Репозиторий:",
         "license": "Лицензия:",
-        "license_type": "Лицензия MIT"
+        "license_type": "Лицензия MIT",
+
+        // MARK: - Background SOCKS5 Warning
+        "bg_socks5_warning_title": "SOCKS5 прокси активен",
+        "bg_socks5_warning_msg": "Работа приложения в фоновом режиме с активным SOCKS5 прокси может привести к сбою из-за ограничений платформы. Держите окно приложения открытым или отключитесь перед сворачиванием.",
+        "bg_socks5_warning_dismiss": "Понятно"
     ]
 }

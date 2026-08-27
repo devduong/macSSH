@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    private var hasShownBackgroundWarning = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Clean up any leftover temporary terminal scripts from previous sessions
         TerminalLauncherService.cleanupOldScripts()
@@ -39,6 +41,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             await ConfigurationService.shared.autoLoadLastFileIfNeeded()
         }
+
+        // Monitor window closures to warn about SOCKS5 background crash risk
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        guard !hasShownBackgroundWarning else { return }
+
+        // All checks must happen on main actor since activeSessions is @MainActor-isolated
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            // Check if any SOCKS5 proxy session is active
+            let hasActiveSocks = ConnectionSessionManager.shared.activeSessions.values.contains {
+                $0.socksServer != nil
+            }
+            guard hasActiveSocks else { return }
+
+            // Count remaining visible windows (excluding the one being closed and menu bar)
+            let closingWindow = notification.object as? NSWindow
+            let remainingVisible = NSApp.windows.filter {
+                $0 != closingWindow &&
+                $0.isVisible &&
+                !$0.className.contains("StatusBar") &&
+                !$0.className.contains("MenuBar") &&
+                $0.level == .normal
+            }
+
+            if remainingVisible.isEmpty {
+                self.hasShownBackgroundWarning = true
+                self.showBackgroundSocksWarning()
+            }
+        }
+    }
+
+    private func showBackgroundSocksWarning() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.tr("bg_socks5_warning_title")
+        alert.informativeText = L10n.tr("bg_socks5_warning_msg")
+        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_dismiss"))
+        alert.runModal()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

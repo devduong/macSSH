@@ -197,6 +197,11 @@ public enum L10n_EN {
         "developer": "Developer:",
         "repository": "Repository:",
         "license": "License:",
-        "license_type": "MIT License"
+        "license_type": "MIT License",
+
+        // MARK: - Background SOCKS5 Warning
+        "bg_socks5_warning_title": "SOCKS5 Proxy Active",
+        "bg_socks5_warning_msg": "Running the app in background mode with an active SOCKS5 proxy may cause a crash due to a platform limitation. Consider keeping the app window open or disconnecting before minimizing.",
+        "bg_socks5_warning_dismiss": "I Understand"
     ]
 }

@@ -197,6 +197,11 @@ public enum L10n_VI {
         "developer": "Tác giả:",
         "repository": "Mã nguồn:",
         "license": "Giấy phép:",
-        "license_type": "Giấy phép MIT"
+        "license_type": "Giấy phép MIT",
+
+        // MARK: - Background SOCKS5 Warning
+        "bg_socks5_warning_title": "SOCKS5 Proxy đang hoạt động",
+        "bg_socks5_warning_msg": "Chạy ứng dụng ở chế độ nền khi SOCKS5 proxy đang hoạt động có thể gây crash do giới hạn nền tảng. Hãy giữ cửa sổ ứng dụng mở hoặc ngắt kết nối trước khi thu nhỏ.",
+        "bg_socks5_warning_dismiss": "Tôi đã hiểu"
     ]
 }
