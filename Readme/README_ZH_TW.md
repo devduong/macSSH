@@ -184,16 +184,17 @@
    open macSSH.xcodeproj
    ```
 
-3. **使用指令稿建置並打包 DMG**：
+3. **編譯應用程式**：
    ```bash
-   ./create-dmg.sh
+   xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release build
    ```
-   *指令稿將自動完成 Release Universal 雙架構編譯、自我簽署並打包產生最終的 DMG 安裝檔案，輸出至 `build/macSSH.app`。*
+   *或在 Xcode 中選擇 `macSSH` Scheme 並按 `Cmd + B`。*
 
 4. **啟動建置出的應用程式**：
    ```bash
-   open build/macSSH.app
+   open $(xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release -showBuildSettings | grep -m 1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/macSSH.app
    ```
+   *或在 Xcode 中按 `Cmd + R` 直接執行。*
 
 ---
 

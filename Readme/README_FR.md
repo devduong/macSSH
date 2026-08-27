@@ -184,16 +184,17 @@ Pour ouvrir l'application :
    open macSSH.xcodeproj
    ```
 
-3. **Compiler et empaqueter le DMG avec le script** :
+3. **Compiler l'application** :
    ```bash
-   ./create-dmg.sh
+   xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release build
    ```
-   *Le script compile le binaire universel Release (arm64 + x86_64), signe l'application et génère le fichier DMG final dans `build/macSSH.app`.*
+   *Ou sélectionnez le schéma `macSSH` dans Xcode et appuyez sur `Cmd + B`.*
 
 4. **Lancer l'application compilée** :
    ```bash
-   open build/macSSH.app
+   open $(xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release -showBuildSettings | grep -m 1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/macSSH.app
    ```
+   *Ou appuyez sur `Cmd + R` pour lancer directement depuis Xcode.*
 
 ---
 

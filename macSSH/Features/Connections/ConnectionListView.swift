@@ -66,7 +66,7 @@ struct ConnectionListView: View {
             ConnectionListColumn(viewModel: viewModel)
         }
         .navigationTitle("")
-        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .onChange(of: viewModel.selectedSidebarItem) {
             viewModel.selectedConnectionId = nil
             viewModel.activeDetailConnectionId = nil

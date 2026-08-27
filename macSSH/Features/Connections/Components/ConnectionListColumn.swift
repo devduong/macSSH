@@ -21,8 +21,17 @@ struct ConnectionListColumn: View {
 
             case .success:
                 // Always show connectionList so .searchable toolbar stays attached.
-                // Empty state is shown as overlay inside the List.
+                // Use safeAreaInset to avoid clipping/overlapping the top navigation title.
                 connectionList
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if viewModel.isShowingLogPanel {
+                            VStack(spacing: 0) {
+                                Divider()
+                                MainLogBottomPanel(isPresented: $viewModel.isShowingLogPanel)
+                            }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
 
             case .error(let error):
                 ErrorView(error: error) {
@@ -89,6 +98,25 @@ struct ConnectionListColumn: View {
                     Label("New Connection", systemImage: "plus")
                 }
                 .help("New Connection")
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.isShowingLogPanel.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.isShowingLogPanel ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 12))
+                            .foregroundStyle(viewModel.isShowingLogPanel ? Color.accentColor : Color.secondary)
+                        Text(loc("Logs", "Nhật ký"))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 2)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(loc("Toggle Activity Log (Cmd+Shift+L)", "Bật/Tắt khung nhật ký (Cmd+Shift+L)"))
+                .keyboardShortcut("l", modifiers: [.command, .shift])
             }
         }
     }

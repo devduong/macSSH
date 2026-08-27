@@ -33,6 +33,7 @@ final class ConnectionListViewModel {
     var isShowingNewFolderSheet = false
     var isShowingPasswordPrompt = false
     var isShowingDeleteFolderAlert = false
+    var isShowingLogPanel = true
 
     enum PasswordPromptTarget: Sendable {
         case connectSession

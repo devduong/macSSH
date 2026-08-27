@@ -184,16 +184,17 @@
    open macSSH.xcodeproj
    ```
 
-3. **Соберите и упакуйте DMG с помощью скрипта**:
+3. **Соберите приложение**:
    ```bash
-   ./create-dmg.sh
+   xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release build
    ```
-   *Скрипт выполнит сборку Universal Release, подпишет бинарный файл и создаст готовый DMG-образ в каталоге `build/macSSH.app`.*
+   *Или выберите схему `macSSH` в Xcode и нажмите `Cmd + B`.*
 
 4. **Запустите собранное приложение**:
    ```bash
-   open build/macSSH.app
+   open $(xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release -showBuildSettings | grep -m 1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/macSSH.app
    ```
+   *Или нажмите `Cmd + R` для запуска в Xcode.*
 
 ---
 

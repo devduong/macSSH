@@ -2,60 +2,83 @@
 //  Logger.swift
 //  macSSH
 //
-//  Centralized logging using OSLog
+//  Centralized logging using OSLog and in-memory AppLogStore
 //
 
 import Foundation
+import SwiftUI
 import os.log
 
-enum LogCategory: String {
+public enum LogCategory: String, Sendable, CaseIterable {
     case app = "App"
+    case network = "Network"
+    case socks5 = "SOCKS5"
     case sftp = "SFTP"
+    case terminal = "Terminal"
+    case auth = "Auth"
     case keychain = "Keychain"
     case database = "Database"
     case ui = "UI"
-    case network = "Network"
-    case auth = "Auth"
+
+    public var icon: String {
+        switch self {
+        case .app: return "app.badge"
+        case .network: return "network"
+        case .socks5: return "wifi"
+        case .sftp: return "folder.badge.gearshape"
+        case .terminal: return "terminal"
+        case .auth: return "lock.shield"
+        case .keychain: return "key"
+        case .database: return "cylinder"
+        case .ui: return "macwindow"
+        }
+    }
 }
 
-enum LogLevel {
-    case debug
-    case info
-    case warning
-    case error
+public enum LogLevel: String, Sendable, CaseIterable {
+    case debug = "DEBUG"
+    case info = "INFO"
+    case success = "SUCCESS"
+    case warning = "WARN"
+    case error = "ERROR"
 
-    var osLogType: OSLogType {
+    public var osLogType: OSLogType {
         switch self {
         case .debug: return .debug
-        case .info: return .info
+        case .info, .success: return .info
         case .warning: return .default
         case .error: return .error
         }
     }
 
-    var prefix: String {
+    public var prefix: String {
+        "[\(rawValue)]"
+    }
+
+    public var color: Color {
         switch self {
-        case .debug: return "[DEBUG]"
-        case .info: return "[INFO]"
-        case .warning: return "[WARNING]"
-        case .error: return "[ERROR]"
+        case .debug: return .secondary
+        case .info: return .blue
+        case .success: return .green
+        case .warning: return .orange
+        case .error: return .red
         }
     }
 }
 
-final class Logger {
-    static let shared = Logger()
+public final class Logger: @unchecked Sendable {
+    public static let shared = Logger()
 
     private let subsystem = Bundle.main.bundleIdentifier ?? AppConstants.bundleIdentifier
     private var loggers: [LogCategory: os.Logger] = [:]
 
     private init() {
-        for category in [LogCategory.app, .sftp, .keychain, .database, .ui, .network, .auth] {
+        for category in LogCategory.allCases {
             loggers[category] = os.Logger(subsystem: subsystem, category: category.rawValue)
         }
     }
 
-    func log(
+    public func log(
         _ message: @autoclosure () -> String,
         level: LogLevel = .info,
         category: LogCategory = .app,
@@ -63,73 +86,74 @@ final class Logger {
         function: String = #function,
         line: Int = #line
     ) {
-        #if DEBUG
         let msg = message()
         let logger = loggers[category] ?? os.Logger(subsystem: subsystem, category: category.rawValue)
         let fileName = (file as NSString).lastPathComponent
         let logMessage = "\(level.prefix) [\(fileName):\(line)] \(function) - \(msg)"
 
         logger.log(level: level.osLogType, "\(logMessage)")
+        #if DEBUG
         print(logMessage)
-        #else
-        // In Release builds: Only log errors and warnings; ignore debug & info for zero memory allocation
-        if level == .error || level == .warning {
-            let msg = message()
-            let logger = loggers[category] ?? os.Logger(subsystem: subsystem, category: category.rawValue)
-            let fileName = (file as NSString).lastPathComponent
-            let logMessage = "\(level.prefix) [\(fileName):\(line)] \(function) - \(msg)"
-            logger.log(level: level.osLogType, "\(logMessage)")
-        }
         #endif
+
+        Task { @MainActor in
+            AppLogStore.shared.append(level: level, category: category, message: msg)
+        }
     }
 
     @inline(__always)
-    func debug(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+    public func debug(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
         #if DEBUG
         log(message(), level: .debug, category: category, file: file, function: function, line: line)
         #endif
     }
 
     @inline(__always)
-    func info(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
-        #if DEBUG
+    public func info(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
         log(message(), level: .info, category: category, file: file, function: function, line: line)
-        #endif
     }
 
     @inline(__always)
-    func warning(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+    public func success(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+        log(message(), level: .success, category: category, file: file, function: function, line: line)
+    }
+
+    @inline(__always)
+    public func warning(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
         log(message(), level: .warning, category: category, file: file, function: function, line: line)
     }
 
     @inline(__always)
-    func error(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+    public func error(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
         log(message(), level: .error, category: category, file: file, function: function, line: line)
     }
 }
 
-// MARK: - Convenience Functions (Zero-Allocation in Release)
+// MARK: - Convenience Functions
 
 @inline(__always)
-func logDebug(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+public func logDebug(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
     #if DEBUG
     Logger.shared.debug(message(), category: category, file: file, function: function, line: line)
     #endif
 }
 
 @inline(__always)
-func logInfo(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
-    #if DEBUG
+public func logInfo(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
     Logger.shared.info(message(), category: category, file: file, function: function, line: line)
-    #endif
 }
 
 @inline(__always)
-func logWarning(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+public func logSuccess(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.success(message(), category: category, file: file, function: function, line: line)
+}
+
+@inline(__always)
+public func logWarning(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
     Logger.shared.warning(message(), category: category, file: file, function: function, line: line)
 }
 
 @inline(__always)
-func logError(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
+public func logError(_ message: @autoclosure () -> String, category: LogCategory = .app, file: String = #file, function: String = #function, line: Int = #line) {
     Logger.shared.error(message(), category: category, file: file, function: function, line: line)
 }

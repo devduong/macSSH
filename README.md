@@ -109,7 +109,13 @@
 - **Encrypted Password Storage (AES-256-GCM)**: Passwords can be encrypted and saved inside configuration files if enabled, removing hard dependencies on macOS Keychain.
 - **Touch ID App Lock**: Lock and unlock macSSH using Apple Touch ID or macOS system password.
 
-### 🌐 8. Multi-Language System (Key-Based L10N)
+### 📜 9. Real-Time Activity Log Console
+- **Centralized Activity Logger**: Live streaming of all system operations, SSH connections, SOCKS5 proxy lifecycle, SFTP transfers, and authentication events.
+- **Collapsible & Resizable Bottom Panel**: Convenient toggle checkbox (`⌘⇧L`) in the main window toolbar with draggable height adjustment (`↕︎` native resize cursor).
+- **Advanced Filtering & Search**: Filter logs by severity (`INFO`, `SUCCESS`, `WARN`, `ERROR`), by category (`Network`, `SOCKS5`, `SFTP`, `Terminal`, `Auth`, `Database`, `App`), or live text search.
+- **One-Click Export & Test**: Copy visible formatted logs to clipboard, clear history, or emit simulated test messages.
+
+### 🌐 10. Multi-Language System (Key-Based L10N)
 - Built-in multi-language support with automatic English fallback:
   - 🇬🇧 **English** (Default Fallback)
   - 🇻🇳 **Tiếng Việt** (Vietnamese)
@@ -138,33 +144,25 @@
 ## 💽 Installation & Setup
 
 ### System Requirements
-- **macOS**: 15.0+ (Sequoia | Tahoe).
-- **Architecture**: Universal 2 (Optimized for both **Apple Silicon M1/M2/M3/M4** and **Intel x86_64**).
+- **macOS**: 15.0 or later (Sequoia | Tahoe).
+- **Architecture**: Universal 2 (Apple Silicon M1-M4 & Intel x86_64).
 
-### 1. Download DMG
-Download the latest `macSSH_Universal_x.x.x.dmg` from [GitHub Releases](https://github.com/devduong/macSSH/releases).
+### Option 1: Download Pre-built DMG (Recommended)
+1. Go to the [Releases](https://github.com/devduong/macSSH/releases) page.
+2. Download the latest `macSSH_Universal_x.x.x.dmg`.
+3. Open the DMG and drag **macSSH** to your **Applications** folder.
 
-### 2. Install App
-Open the DMG and drag **macSSH.app** into your **Applications** (`/Applications`) folder.
-
-### 3. First Launch & macOS Gatekeeper Bypass
-
-> [!WARNING]
-> **Warning**  
-> Because macSSH is a free open-source project and is not signed with a paid Apple Developer certificate, macOS Gatekeeper may show a warning: *"macSSH cannot be opened because the developer cannot be verified"* or *"macOS cannot verify that this app is free from malware"*.
-
-To open the app:
-1. Open **System Settings** on your Mac.
-2. Go to **Privacy & Security**.
-3. Scroll down to the **Security** section.
-4. Click the **"Open Anyway"** button next to the notification that macSSH was blocked.
-5. In the confirmation dialog, click **"Open"** and enter your Mac password or use Touch ID.
-
-*(Alternative: Right-click / Control-click `macSSH.app` in Finder -> select **Open** -> click **Open**).*
+> [!IMPORTANT]
+> **First-Time Launch (Bypass macOS Gatekeeper):**
+> If macOS displays *"macSSH can't be opened because Apple cannot check it for malicious software"*:
+> 1. Open **System Settings** -> **Privacy & Security**.
+> 2. Scroll down to the **Security** section.
+> 3. Click **"Open Anyway"** next to the macSSH notice.
+> 4. Enter your Mac password / Touch ID to confirm.
 
 ---
 
-### Building from Source
+### Option 2: Build from Source
 
 #### Prerequisites
 - **Xcode**: 16.0 or later.
@@ -184,16 +182,17 @@ To open the app:
    open macSSH.xcodeproj
    ```
 
-3. **Build & Package the Universal DMG**:
+3. **Build the Application**:
    ```bash
-   ./create-dmg.sh
+   xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release build
    ```
-   *The script automatically compiles Release Universal binaries (`arm64` + `x86_64`), applies ad-hoc codesign, and packages the final distributable DMG at `build/macSSH.app`.*
+   *Or select the `macSSH` scheme in Xcode and press `Cmd + B`.*
 
 4. **Run the built application**:
    ```bash
-   open build/macSSH.app
+   open $(xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release -showBuildSettings | grep -m 1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/macSSH.app
    ```
+   *Or press `Cmd + R` to run directly in Xcode.*
 
 ---
 

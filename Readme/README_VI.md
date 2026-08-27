@@ -1,71 +1,51 @@
-<p align="center">
-  <img src="../screens/logo.png" alt="macSSH Logo" width="160"/>
-</p>
-
-<h1 align="center">macSSH</h1>
+# 🚀 macSSH (macOS Native SSH, SFTP & Dynamic SOCKS5 Client)
 
 <p align="center">
-  <strong>Trình Quản lý Kết nối SSH, Trình duyệt SFTP Dual-Pane, Terminal Emulator & Dynamic SOCKS5 Proxy Native Dành Riêng Cho macOS</strong>
+  <img src="../screens/icon.png" width="128" height="128" alt="macSSH App Icon" style="border-radius: 22%; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
 </p>
 
 <p align="center">
-  <em>100% Swift & SwiftUI • Universal Binary (Apple Silicon & Intel)</em>
+  <strong>Ứng dụng Native macOS đỉnh cao cho SFTP Dual-Pane, Dynamic SOCKS5 Proxy & SSH Terminal</strong><br>
+  <em>Tương thích hoàn hảo macOS 15.0+ Sequoia | Tahoe (Universal 2: Apple Silicon & Intel)</em>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-15.0%2B%20(Sequoia%20%7C%20Tahoe)-black?style=flat-square&logo=apple" alt="macOS 15.0+ (Sequoia | Tahoe)"/>
-  <img src="https://img.shields.io/badge/Swift-5.9%2B%20%7C%206.0-orange?style=flat-square&logo=swift" alt="Swift 5.9+ / 6.0"/>
-  <img src="https://img.shields.io/badge/Architecture-Universal%20(arm64%20%2B%20x86__64)-purple?style=flat-square" alt="Universal Binary"/>
-  <a href="../LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License MIT"/></a>
-</p>
-
----
-
-<p align="center">
-  🌐 <strong>Languages / 多语言 / Ngôn ngữ / Языки / Langues</strong>
-</p>
-
-<p align="center">
-  <a href="../README.md">English</a> •
-  <strong>Tiếng Việt</strong> •
-  <a href="README_ZH_CN.md">简体中文</a> •
-  <a href="README_ZH_TW.md">繁體中文</a> •
-  <a href="README_RU.md">Русский</a> •
-  <a href="README_FR.md">Français</a>
+  <img src="https://img.shields.io/badge/Platform-macOS%2015.0%2B-blue.svg?style=flat-square&logo=apple" alt="macOS Platform" />
+  <img src="https://img.shields.io/badge/Architecture-Universal%202%20(arm64%20|%20x86__64)-purple.svg?style=flat-square" alt="Universal 2 Architecture" />
+  <img src="https://img.shields.io/badge/Swift-5.9%2B-F05138.svg?style=flat-square&logo=swift" alt="Swift Version" />
+  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License" />
+  <a href="https://github.com/devduong/macSSH/releases"><img src="https://img.shields.io/github/downloads/devduong/macSSH/total.svg?style=flat-square&color=orange" alt="GitHub Downloads" /></a>
+  <a href="https://ko-fi.com/X4P324ZPZ3"><img src="https://img.shields.io/badge/Donate-Ko--fi-ff5e5b.svg?style=flat-square&logo=kofi" alt="Donate Ko-fi" /></a>
 </p>
 
 ---
 
-## ⚠️ Lưu ý quan trọng: Chỉ dành cho macOS (macOS Only)
+## 🌍 Ngôn Ngữ / Languages
 
-> [!IMPORTANT]
-> **macSSH được xây dựng và tối ưu chuyên biệt cho Apple macOS.**
-> Ứng dụng là phần mềm native 100% được phát triển bằng **SwiftUI**, **AppKit**, **SwiftData**, kết hợp các framework hệ thống của Apple như **LocalAuthentication (Touch ID)** và **Keychain Services**.
-> 
-> Ứng dụng **KHÔNG** hỗ trợ Windows hay Linux — mang lại tốc độ phản hồi native cực nhanh, độ trễ bằng 0 và chiếm dụng bộ nhớ RAM tối thiểu.
+[English](../README.md) | [Tiếng Việt](README_VI.md) | [简体中文](README_ZH_CN.md) | [繁體中文](README_ZH_TW.md) | [Русский](README_RU.md) | [Français](README_FR.md)
 
 ---
 
-## 🌟 Tổng Quan Dự Án
+## 🌟 Giới Thiệu Tổng Quan
 
-**macSSH** cung cấp giải pháp toàn diện cho các lập trình viên, DevOps và quản trị viên hệ thống khi làm việc với máy chủ từ xa trên máy Mac:
+**macSSH** là ứng dụng native độc quyền dành riêng cho macOS, được phát triển 100% bằng **SwiftUI**, **AppKit** và **SwiftData**. Ứng dụng mang đến trải nghiệm đồ hoạ mượt mà, tốc độ phản hồi tức thì và hiệu năng tối ưu:
 
-- **Duyệt & Quản lý Tệp Từ Xa (SFTP Dual-Pane)**: Kéo thả 2 chiều trực quan giữa máy Mac (Local) và máy chủ (Remote), hỗ trợ kéo thả tệp trực tiếp ra Finder của macOS.
-- **SSH Terminal Hiệu Năng Cao**: Trình giả lập `xterm-256color` siêu mượt (60 FPS) hỗ trợ chuẩn OpenSSH PTY Zero-latency Direct Feed (gõ phản hồi tức thì), cùng nút mở trực tiếp bằng macOS `Terminal.app` gốc chỉ với 1 click.
-- **Dynamic SOCKS5 Proxy qua SSH Tunnel**: Tự động mở SOCKS5 Proxy server nội bộ qua đường hầm SSH, hỗ trợ định tuyến cả Localhost (`127.0.0.1`) lẫn chia sẻ toàn mạng LAN (`0.0.0.0`) kèm cơ chế tự phục hồi khi xung đột cổng.
-- **Mở Bằng Ứng Dụng Ngoài & Tự Động Đồng Bộ (Open With & Auto-Sync)**: Mở file remote bằng bất kỳ IDE/Editor nào trên Mac (VS Code, TextEdit, Xcode, Sublime Text,...) và tự động upload ghi đè lên server ngay khi bấm Save (`⌘S`).
-- **Thường Trú Menu Bar & Chạy Ngầm**: Duy trì kết nối SSH và SOCKS5 Proxy liên tục ngay cả khi đóng tất cả cửa sổ chính.
-- **Quản Lý Cấu Hình Độc Lập & Bảo Mật**: Xuất/nhập file cấu hình JSON, tự động nạp lại file cấu hình gần nhất, khóa ứng dụng Touch ID và mã hóa mật khẩu AES-256-GCM an toàn.
+- 🌐 **Dynamic SOCKS5 SSH Tunnel**: Tự động mở SOCKS5 Proxy server (Localhost hoặc chia sẻ mạng LAN) qua kết nối SSH.
+- 📂 **SFTP Browser Dạng 2 Khung (Dual-Pane)**: Kéo thả hai chiều (Local ⇄ Remote), kéo thả trực tiếp ra Finder, tải thư mục đệ quy và thanh gõ đường dẫn trực tiếp.
+- 📝 **Chỉnh Sửa Bằng Ứng Dụng Ngoài ("Open With")**: Mở tệp từ xa bằng VS Code, Xcode, TextEdit,... và tự động upload ghi đè lên server ngay khi bấm Save (`⌘S`).
+- 💻 **SSH Terminal Zero-Latency**: Giả lập `xterm-256color` siêu mượt 60 FPS, phản hồi gõ phím tức thì và hỗ trợ mở trực tiếp sang Terminal.app của macOS.
+- 📜 **Khung Nhật Ký Hoạt Động (Activity Logs)**: Bảng console trực tiếp theo dõi toàn bộ sự kiện SSH, SOCKS5, SFTP, Auth và Database.
+- 💾 **Lưu Cấu Hình Độc Lập**: Lưu/Nạp cấu hình JSON, mã hoá mật khẩu AES-256-GCM không phụ thuộc Keychain, bảo mật sinh trắc học Touch ID.
 
 ---
 
-## ✨ Tính Năng & Chức Năng Nổi Bật
+## ✨ Tính Năng Nổi Bật
 
 ### 🌐 1. Dynamic SOCKS5 Proxy (SSH Tunnel)
-- **Tạo Proxy Tự Động**: Khởi chạy một SOCKS5 Proxy server định tuyến toàn bộ lưu lượng qua kết nối SSH an toàn.
-- **Hỗ Trợ Mạng Cục Bộ & LAN**: Cho phép lắng nghe trên `127.0.0.1` (chỉ máy Mac này) hoặc `0.0.0.0` (chia sẻ proxy cho các thiết bị khác trong cùng mạng LAN, tự động nhận diện địa chỉ IP LAN).
-- **Badge Bật/Tắt Nhanh**: Badge SOCKS5 hiển thị trực tiếp trên từng hàng Server, click để bật/tắt tức thì không cần mở form chỉnh sửa.
-- **Xử Lý Xung Đột Cổng Thông Minh**: Nếu cổng SOCKS5 bị trùng (`Address already in use`), macSSH sẽ tự động tắt proxy an toàn, thông báo qua popup Toast 5s glassmorphic mà không làm gián đoạn phiên SSH chính.
+- **Tự Động Mở SOCKS5 Proxy**: Mở proxy server cục bộ an toàn định tuyến toàn bộ lưu lượng qua phiên SSH đang kết nối.
+- **Chia Sẻ Mạng LAN**: Hỗ trợ binding `127.0.0.1` (riêng máy Mac) hoặc `0.0.0.0` (chia sẻ cho mọi thiết bị trong mạng Wi-Fi/LAN, tự động phát hiện IP LAN).
+- **Badge Bật/Tắt Nhanh**: Nút badge SOCKS5 màu tím trên từng server cho phép bật/tắt proxy nhanh mà không cần mở form chỉnh sửa.
+- **Tự Động Xử Lý Trùng Port**: Tự động phát hiện cổng bị chiếm dụng (`Address already in use`), ngắt proxy an toàn và hiện thông báo Toast 5 giây mà không làm gián đoạn kết nối SSH.
 
 ### 📂 2. Quản Lý Tệp SFTP Dual-Pane & Kéo Thả 2 Chiều
 - **Bố Cục 2 Khung Song Song (Dual-Pane)**: Khung bên trái duyệt tệp Local (máy Mac), khung bên phải duyệt tệp Remote (Server).
@@ -88,7 +68,7 @@
 - **Khởi Chạy macOS Terminal Gốc**: Nút **"Open in macOS Terminal"** trên toolbar và context menu mở phiên SSH sang ứng dụng **Terminal.app** của macOS chỉ với 1 click qua AppleScript.
 - **Tự Động Nhập Lại Mật Khẩu**: Khi phát hiện lỗi sai mật khẩu hoặc xác thực SSH thất bại, ứng dụng tự động hiển thị sheet nhập lại mật khẩu trực quan.
 
-### 📊 5. Bảng Quản Lý Truyền Tải & Log Console Thời Gian Thực
+### 📊 5. Bảng Quản Lý Truyền Tải & Log Console SFTP
 - **Bảng Điều Khiển 3 Tab Dưới Đáy File Browser**:
   - 📤 **Upload Queue**: Danh sách file đang tải lên, tiến trình %, dung lượng, **tốc độ realtime (MB/s, KB/s)**, **thời gian còn lại (ETA)**, nút Hủy.
   - 📥 **Download Queue**: Theo dõi tiến trình tải xuống, tốc độ và ETA thời gian thực.
@@ -109,7 +89,13 @@
 - **Mã Hóa Mật Khẩu AES-256-GCM**: Mật khẩu được mã hóa và lưu an toàn vào file cấu hình (nếu bật), không phụ thuộc vào Keychain hệ thống.
 - **Bảo Mật Sinh Trắc Học**: Hỗ trợ khóa ứng dụng bằng Touch ID hoặc mật khẩu máy Mac qua Apple LocalAuthentication.
 
-### 🌐 8. Hỗ Trợ Đa Ngôn Ngữ (Localization L10N)
+### 📜 8. Khung Nhật Ký Hoạt Động Trực Tiếp (Activity Log Console)
+- **Ghi Nhận Nhật Ký Toàn Hệ Thống**: Stream realtime hoạt động hệ thống, kết nối SSH, vòng đời SOCKS5 proxy, truyền tệp SFTP và xác thực.
+- **Khung Điều Khiển Thu Gọn & Co Giãn**: Nút Checkbox tiện lợi (`⌘⇧L`) trên thanh công cụ với khả năng kéo thả chỉnh độ cao linh hoạt (`↕︎` native resize cursor).
+- **Bộ Lọc Nâng Cao & Tìm Kiếm**: Lọc nhật ký theo cấp độ (`INFO`, `SUCCESS`, `WARN`, `ERROR`), theo danh mục (`Network`, `SOCKS5`, `SFTP`, `Terminal`, `Auth`, `Database`, `App`), hoặc ô tìm kiếm realtime.
+- **Xuất & Kiểm Thử Nhanh**: Sao chép nhật ký vào Clipboard với 1 click, xóa sạch lịch sử hoặc phát log thử nghiệm.
+
+### 🌐 9. Hỗ Trợ Đa Ngôn Ngữ (Localization L10N)
 - Hệ thống đa ngôn ngữ theo chuẩn key-based với cơ chế tự động Fallback Tiếng Anh:
   - 🇬🇧 Tiếng Anh (**English** - Default Fallback)
   - 🇻🇳 **Tiếng Việt**
@@ -141,30 +127,22 @@
 - **macOS**: 15.0+ (Sequoia | Tahoe).
 - **Kiến Trúc**: Universal 2 (Hỗ trợ tối ưu cả **Apple Silicon M1/M2/M3/M4** và **Intel x86_64**).
 
-### 1. Tải Bản Cài Đặt DMG
-Tải phiên bản mới nhất `macSSH_Universal_x.x.x.dmg` từ mục [GitHub Releases](https://github.com/devduong/macSSH/releases).
+### Lựa Chọn 1: Tải Bản Cài Đặt DMG (Khuyên dùng)
+1. Tải phiên bản mới nhất `macSSH_Universal_x.x.x.dmg` từ mục [GitHub Releases](https://github.com/devduong/macSSH/releases).
+2. Mở tệp `.dmg` đã tải về và kéo biểu tượng **macSSH.app** vào thư mục **Applications** (`/Applications`).
 
-### 2. Cài Đặt Ứng Dụng
-Mở tệp `.dmg` đã tải về và kéo biểu tượng **macSSH.app** vào thư mục **Applications** (`/Applications`).
-
-### 3. Mở Ứng Dụng Lần Đầu & Bỏ Qua Cảnh Báo macOS Gatekeeper
-
-> [!WARNING]
-> **Cảnh báo (Warning)**  
-> Do macSSH là phần mềm mã nguồn mở miễn phí và không sử dụng chứng chỉ ký trả phí của Apple Developer, macOS Gatekeeper có thể hiển thị cảnh báo: *"macSSH cannot be opened because the developer cannot be verified"* hoặc *"macOS cannot verify that this app is free from malware"*.
-
-Để mở ứng dụng:
-1. Mở **System Settings** (Cài đặt hệ thống) trên máy Mac của bạn.
-2. Chọn mục **Privacy & Security** (Quyền riêng tư & Bảo mật).
-3. Cuộn xuống phần **Security** (Bảo mật).
-4. Nhấn vào nút **"Open Anyway"** (Mở dù sao đi nữa) bên cạnh thông báo macSSH bị chặn.
-5. Trong hộp thoại xác nhận, nhấn **"Open"** (Mở) và nhập mật khẩu máy Mac hoặc dùng Touch ID.
-
-*(Cách khác: Nhấp chuột phải / Control-click vào `macSSH.app` trong Finder -> chọn **Open** -> nhấn **Open**).*
+> [!IMPORTANT]
+> **Mở Ứng Dụng Lần Đầu (Vượt macOS Gatekeeper):**
+> Nếu macOS hiển thị thông báo *"macSSH cannot be opened because Apple cannot check it for malicious software"*:
+> 1. Mở **System Settings** (Cài đặt hệ thống) trên máy Mac của bạn.
+> 2. Chọn mục **Privacy & Security** (Quyền riêng tư & Bảo mật).
+> 3. Cuộn xuống phần **Security** (Bảo mật).
+> 4. Nhấn vào nút **"Open Anyway"** (Mở dù sao đi nữa) bên cạnh thông báo macSSH bị chặn.
+> 5. Trong hộp thoại xác nhận, nhấn **"Open"** (Mở) và nhập mật khẩu máy Mac hoặc dùng Touch ID.
 
 ---
 
-### Biên Dịch Từ Mã Nguồn (Build from Source)
+### Lựa Chọn 2: Biên Dịch Từ Mã Nguồn (Build from Source)
 
 #### Yêu Cầu Phát Triển
 - **Xcode**: 16.0 trở lên.
@@ -184,16 +162,17 @@ Mở tệp `.dmg` đã tải về và kéo biểu tượng **macSSH.app** vào t
    open macSSH.xcodeproj
    ```
 
-3. **Biên dịch và đóng gói DMG chuẩn hóa bằng script**:
+3. **Biên dịch ứng dụng**:
    ```bash
-   ./create-dmg.sh
+   xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release build
    ```
-   *Script sẽ tự động build bản Release Universal (arm64 + x86_64), ký số ad-hoc, tạo file DMG và xuất bản chạy tại `build/macSSH.app`.*
+   *Hoặc chọn scheme `macSSH` trong Xcode và nhấn `Cmd + B`.*
 
 4. **Khởi chạy ứng dụng**:
    ```bash
-   open build/macSSH.app
+   open $(xcodebuild -project macSSH.xcodeproj -scheme macSSH -configuration Release -showBuildSettings | grep -m 1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/macSSH.app
    ```
+   *Hoặc nhấn `Cmd + R` để chạy trực tiếp trong Xcode.*
 
 ---
 
@@ -203,34 +182,17 @@ Mở tệp `.dmg` đã tải về và kéo biểu tượng **macSSH.app** vào t
 
 ### 1. Hỗ Trợ Qua Ko-fi & GitHub
 - ☕ **Ko-fi**: [https://ko-fi.com/X4P324ZPZ3](https://ko-fi.com/X4P324ZPZ3)
-- ⭐ **Tặng 1 sao trên GitHub**: [devduong/macSSH](https://github.com/devduong/macSSH)
+- 🌟 **GitHub Star**: Tặng một ngôi sao tại [https://github.com/devduong/macSSH](https://github.com/devduong/macSSH)
 
-### 2. Ủng Hộ Qua Tiền Điện Tử (Crypto Donation)
-Bạn có thể gửi bất kỳ token nào thuộc mạng **BNB Smart Chain (BEP20)** như *USDT, BNB, BUSD, USDC...* đến địa chỉ ví dưới đây:
-
-- **Mạng lưới (Network)**: `BEP20 (BSC – Binance Smart Chain)`
-- **Địa chỉ ví (Wallet Address)**:
-  ```text
-  0xe26c0DC422EF744816Ca3B2d210e6214fdC4e18E
-  ```
+### 2. Ủng Hộ Qua Tiền Mã Hóa (Crypto Donation - BEP20)
+- **Network**: `BEP20 (Binance Smart Chain - BSC)`
+- **Địa Chỉ Ví**: `0xe26c0DC422EF744816Ca3B2d210e6214fdC4e18E`
+- *(Chấp nhận mọi token trên mạng BEP20 như USDT, BNB, BUSD, ETH...)*
 
 ---
 
-## 🙏 Lời Cảm Ơn & Credits
+## 📜 Giấy Phép & Bản Quyền (License)
 
-- 🌟 **Gửi lời cảm ơn đặc biệt đến anh [macnev2013](https://github.com/macnev2013)** — Tác giả của dự án `macSCP` và `anySCP`. Cảm ơn anh rất nhiều vì ý tưởng thiết kế tuyệt vời ban đầu, là nguồn cảm hứng lớn và nền tảng quý giá để xây dựng nên dự án **macSSH**.
-- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) bởi Joannis Orlandos & [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) bởi Apple — Thư viện giao thức SSH & SFTP cốt lõi.
-- 💻 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) bởi Miguel de Icaza — Trình giả lập Terminal mạnh mẽ trên macOS.
-- 🎨 [SF Symbols](https://developer.apple.com/sf-symbols/) bởi Apple — Hệ thống biểu tượng giao diện chuẩn macOS.
+Dự án được phân phối dưới giấy phép **MIT License** — xem tệp [LICENSE](../LICENSE) để biết thêm chi tiết.
 
----
-
-## 📄 Giấy Phép (License)
-
-Dự án được phân phối dưới giấy phép **MIT License** — Xem tệp [LICENSE](../LICENSE) để biết thêm chi tiết.
-
----
-
-<p align="center">
-  Được tạo ra với ❤️ dành cho cộng đồng người dùng macOS.
-</p>
+Cảm ơn đặc biệt tới **macnev2013** (tác giả dự án gốc `macSCP`) đã tạo tiền đề cảm hứng cho sự phát triển của macSSH!

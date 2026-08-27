@@ -3,7 +3,6 @@
 //  macSSH
 //
 //  Centralized version metadata for the application.
-//  Used by create-dmg.sh to generate DMG filenames.
 //
 
 import Foundation
