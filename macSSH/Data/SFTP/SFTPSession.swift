@@ -14,7 +14,7 @@ import NIOFoundationCompat
 actor SFTPSession: SFTPSessionProtocol {
     private var client: SSHClient?
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
-    private var socksServer: Socks5ProxyServer?
+    private var socksTunnel: NativeSocksTunnel?
     private(set) var isConnected = false
     private(set) var currentPath = "/"
 
@@ -59,13 +59,20 @@ actor SFTPSession: SFTPSessionProtocol {
             if let socksPort = socksProxyPort, socksPort > 0 {
                 let isAlreadyRunning = await MainActor.run { ConnectionSessionManager.shared.isSocksProxyPortInUse(socksPort) }
                 if !isAlreadyRunning {
-                    let server = Socks5ProxyServer(port: socksPort, sshClient: sshClient, allowLAN: socksProxyAllowLAN)
+                    let tunnel = NativeSocksTunnel(socksPort: socksPort, allowLAN: socksProxyAllowLAN)
                     do {
-                        try await server.start()
-                        self.socksServer = server
-                        logInfo("SOCKS5 Proxy started on port \(socksPort) for SFTP connection to \(host) (allowLAN: \(socksProxyAllowLAN))", category: .sftp)
+                        try await tunnel.start(
+                            host: host,
+                            port: port,
+                            username: username,
+                            password: password,
+                            privateKeyPath: nil,
+                            passphrase: nil
+                        )
+                        self.socksTunnel = tunnel
+                        logInfo("Native SOCKS5 Proxy started on port \(socksPort) for SFTP connection to \(host) (allowLAN: \(socksProxyAllowLAN))", category: .sftp)
                     } catch {
-                        logError("Failed to start SOCKS5 proxy on port \(socksPort): \(error)", category: .sftp)
+                        logError("Failed to start Native SOCKS5 proxy on port \(socksPort): \(error)", category: .sftp)
                     }
                 }
             }
@@ -75,8 +82,8 @@ actor SFTPSession: SFTPSessionProtocol {
 
             logInfo("Connected successfully to \(host)", category: .sftp)
         } catch {
-            await socksServer?.stop()
-            socksServer = nil
+            await socksTunnel?.stop()
+            socksTunnel = nil
             try? await group.shutdownGracefully()
             eventLoopGroup = nil
             throw parseConnectionError(error)
@@ -130,13 +137,20 @@ actor SFTPSession: SFTPSessionProtocol {
             if let socksPort = socksProxyPort, socksPort > 0 {
                 let isAlreadyRunning = await MainActor.run { ConnectionSessionManager.shared.isSocksProxyPortInUse(socksPort) }
                 if !isAlreadyRunning {
-                    let server = Socks5ProxyServer(port: socksPort, sshClient: sshClient, allowLAN: socksProxyAllowLAN)
+                    let tunnel = NativeSocksTunnel(socksPort: socksPort, allowLAN: socksProxyAllowLAN)
                     do {
-                        try await server.start()
-                        self.socksServer = server
-                        logInfo("SOCKS5 Proxy started on port \(socksPort) for SFTP connection to \(host) (allowLAN: \(socksProxyAllowLAN))", category: .sftp)
+                        try await tunnel.start(
+                            host: host,
+                            port: port,
+                            username: username,
+                            password: nil,
+                            privateKeyPath: privateKeyPath,
+                            passphrase: passphrase
+                        )
+                        self.socksTunnel = tunnel
+                        logInfo("Native SOCKS5 Proxy started on port \(socksPort) for SFTP connection to \(host) (allowLAN: \(socksProxyAllowLAN))", category: .sftp)
                     } catch {
-                        logError("Failed to start SOCKS5 proxy on port \(socksPort): \(error)", category: .sftp)
+                        logError("Failed to start Native SOCKS5 proxy on port \(socksPort): \(error)", category: .sftp)
                     }
                 }
             }
@@ -145,8 +159,8 @@ actor SFTPSession: SFTPSessionProtocol {
 
             logInfo("Connected successfully to \(host)", category: .sftp)
         } catch {
-            await socksServer?.stop()
-            socksServer = nil
+            await socksTunnel?.stop()
+            socksTunnel = nil
             try? await group.shutdownGracefully()
             eventLoopGroup = nil
             throw parseConnectionError(error)
@@ -156,8 +170,8 @@ actor SFTPSession: SFTPSessionProtocol {
     func disconnect() async {
         logInfo("Disconnecting from server", category: .sftp)
 
-        await socksServer?.stop()
-        socksServer = nil
+        await socksTunnel?.stop()
+        socksTunnel = nil
 
         try? await client?.close()
         try? await eventLoopGroup?.shutdownGracefully()

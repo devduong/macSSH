@@ -21,10 +21,9 @@ final class ConnectionSessionManager: ObservableObject {
         let connection: Connection
         var client: SSHClient
         let eventLoopGroup: MultiThreadedEventLoopGroup
-        var socksServer: Socks5ProxyServer?
+        var socksTunnel: NativeSocksTunnel?
         let password: String
         let connectedAt: Date
-        var monitorTask: Task<Void, Never>?
     }
 
     @Published private(set) var activeSessions: [UUID: ActiveSession] = [:]
@@ -140,19 +139,25 @@ final class ConnectionSessionManager: ObservableObject {
             }
         }
 
-        var socksServer: Socks5ProxyServer? = nil
+        var socksTunnel: NativeSocksTunnel? = nil
         if effectiveProxyEnabled && connection.socksProxyPort > 0 {
-            let server = Socks5ProxyServer(
-                port: connection.socksProxyPort,
-                sshClient: sshClient,
+            let tunnel = NativeSocksTunnel(
+                socksPort: connection.socksProxyPort,
                 allowLAN: connection.socksProxyAllowLAN
             )
             do {
-                try await server.start()
-                socksServer = server
-                logInfo("SOCKS5 Proxy started on port \(connection.socksProxyPort) for \(connection.name) (allowLAN: \(connection.socksProxyAllowLAN))", category: .network)
+                try await tunnel.start(
+                    host: connection.host,
+                    port: connection.port,
+                    username: connection.username,
+                    password: password,
+                    privateKeyPath: connection.privateKeyPath,
+                    passphrase: nil
+                )
+                socksTunnel = tunnel
+                logInfo("Native SOCKS5 Proxy started on port \(connection.socksProxyPort) for \(connection.name) (allowLAN: \(connection.socksProxyAllowLAN))", category: .network)
             } catch {
-                logError("Failed to start SOCKS5 proxy on port \(connection.socksProxyPort): \(error). Turning proxy OFF.", category: .network)
+                logError("Failed to start Native SOCKS5 proxy on port \(connection.socksProxyPort): \(error). Turning proxy OFF.", category: .network)
                 effectiveProxyEnabled = false
                 handleProxyPortConflict(for: connection.id, port: connection.socksProxyPort, reason: .alreadyBoundOrFailed)
             }
@@ -165,7 +170,7 @@ final class ConnectionSessionManager: ObservableObject {
             connection: sessionConnection,
             client: sshClient,
             eventLoopGroup: group,
-            socksServer: socksServer,
+            socksTunnel: socksTunnel,
             password: password,
             connectedAt: Date()
         )
@@ -173,19 +178,12 @@ final class ConnectionSessionManager: ObservableObject {
         activeSessions[connection.id] = session
         WindowManager.shared.markConnectionActive(connection.id)
         logInfo("Session established and retained for \(connection.name) (proxy: \(effectiveProxyEnabled ? "ON:\(connection.socksProxyPort)" : "OFF"))", category: .network)
-
-        // Start background health monitor if SOCKS5 is active
-        if effectiveProxyEnabled && socksServer != nil {
-            startSessionMonitor(for: connection.id)
-        }
     }
 
     /// Checks if a SOCKS proxy port is currently active on another session
-    func isSocksProxyPortInUse(_ port: Int, excludingConnectionId: UUID? = nil) -> Bool {
-        return activeSessions.values.contains { session in
-            session.connection.id != excludingConnectionId &&
-            session.socksServer != nil &&
-            session.connection.socksProxyPort == port
+    func isSocksProxyPortInUse(_ port: Int) -> Bool {
+        activeSessions.values.contains {
+            $0.socksTunnel?.socksPort == port && $0.connection.socksProxyEnabled
         }
     }
 
@@ -193,7 +191,7 @@ final class ConnectionSessionManager: ObservableObject {
     func activeConnectionName(forSocksPort port: Int, excludingConnectionId: UUID? = nil) -> String? {
         return activeSessions.values.first { session in
             session.connection.id != excludingConnectionId &&
-            session.socksServer != nil &&
+            session.socksTunnel != nil &&
             session.connection.socksProxyPort == port
         }?.connection.name
     }
@@ -201,15 +199,12 @@ final class ConnectionSessionManager: ObservableObject {
     // MARK: - Disconnect
 
     func disconnect(_ connectionId: UUID) async {
-        guard var session = activeSessions.removeValue(forKey: connectionId) else {
+        guard let session = activeSessions.removeValue(forKey: connectionId) else {
             WindowManager.shared.markConnectionInactive(connectionId)
             return
         }
 
-        session.monitorTask?.cancel()
-        session.monitorTask = nil
-
-        await session.socksServer?.stop()
+        await session.socksTunnel?.stop()
         try? await session.client.close()
         try? await session.eventLoopGroup.shutdownGracefully()
         WindowManager.shared.markConnectionInactive(connectionId)
@@ -232,52 +227,58 @@ final class ConnectionSessionManager: ObservableObject {
         guard var session = activeSessions[connectionId] else { return }
 
         if enabled {
-            if session.socksServer == nil && session.connection.socksProxyPort > 0 {
+            if session.socksTunnel == nil && session.connection.socksProxyPort > 0 {
                 if let activeName = activeConnectionName(forSocksPort: session.connection.socksProxyPort, excludingConnectionId: connectionId) {
                     handleProxyPortConflict(for: connectionId, port: session.connection.socksProxyPort, reason: .usedBySession(name: activeName))
                     return
                 }
 
-                let server = Socks5ProxyServer(
-                    port: session.connection.socksProxyPort,
-                    sshClient: session.client,
+                let tunnel = NativeSocksTunnel(
+                    socksPort: session.connection.socksProxyPort,
                     allowLAN: session.connection.socksProxyAllowLAN
                 )
                 do {
-                    try await server.start()
-                    session.socksServer = server
+                    try await tunnel.start(
+                        host: session.connection.host,
+                        port: session.connection.port,
+                        username: session.connection.username,
+                        password: session.password,
+                        privateKeyPath: session.connection.privateKeyPath,
+                        passphrase: nil
+                    )
+                    session.socksTunnel = tunnel
                     var updatedConn = session.connection
                     updatedConn.socksProxyEnabled = true
                     let newSession = ActiveSession(
                         connection: updatedConn,
                         client: session.client,
                         eventLoopGroup: session.eventLoopGroup,
-                        socksServer: server,
+                        socksTunnel: tunnel,
                         password: session.password,
                         connectedAt: session.connectedAt
                     )
                     activeSessions[connectionId] = newSession
-                    logInfo("SOCKS5 Proxy started dynamically on port \(session.connection.socksProxyPort) for \(session.connection.name)", category: .network)
+                    logInfo("Native SOCKS5 Proxy started dynamically on port \(session.connection.socksProxyPort) for \(session.connection.name)", category: .network)
                 } catch {
-                    logError("Failed to start SOCKS5 proxy dynamically on port \(session.connection.socksProxyPort): \(error)", category: .network)
+                    logError("Failed to start Native SOCKS5 proxy dynamically on port \(session.connection.socksProxyPort): \(error)", category: .network)
                     handleProxyPortConflict(for: connectionId, port: session.connection.socksProxyPort, reason: .alreadyBoundOrFailed)
                 }
             }
         } else {
-            if let server = session.socksServer {
-                await server.stop()
+            if let tunnel = session.socksTunnel {
+                await tunnel.stop()
                 var updatedConn = session.connection
                 updatedConn.socksProxyEnabled = false
                 let newSession = ActiveSession(
                     connection: updatedConn,
                     client: session.client,
                     eventLoopGroup: session.eventLoopGroup,
-                    socksServer: nil,
+                    socksTunnel: nil,
                     password: session.password,
                     connectedAt: session.connectedAt
                 )
                 activeSessions[connectionId] = newSession
-                logInfo("SOCKS5 Proxy stopped dynamically for \(session.connection.name)", category: .network)
+                logInfo("Native SOCKS5 Proxy stopped dynamically for \(session.connection.name)", category: .network)
             }
         }
         objectWillChange.send()
@@ -320,145 +321,7 @@ final class ConnectionSessionManager: ObservableObject {
             }
         }
     }
-
-    // MARK: - Session Health Monitor & Auto-Reconnect
-
-    /// Starts a background monitor that checks SSH connection health every 60 seconds.
-    /// If the SSH connection dies, automatically reconnects and restarts SOCKS5.
-    private func startSessionMonitor(for connectionId: UUID) {
-        // Cancel any existing monitor
-        activeSessions[connectionId]?.monitorTask?.cancel()
-
-        let task = Task { [weak self] in
-            var consecutiveFailures = 0
-            let maxRetries = 3
-
-            while !Task.isCancelled {
-                // Check every 60 seconds
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                guard !Task.isCancelled else { break }
-                guard let self = self else { break }
-
-                guard let session = await MainActor.run(body: { self.activeSessions[connectionId] }),
-                      session.socksServer != nil else {
-                    break
-                }
-
-                // Check if SSH is still alive
-                let isAlive = session.client.isConnected
-                if isAlive {
-                    consecutiveFailures = 0
-                    continue
-                }
-
-                // SSH connection died — attempt reconnect
-                consecutiveFailures += 1
-                logWarning("SSH connection lost for \(session.connection.name) (attempt \(consecutiveFailures)/\(maxRetries)), reconnecting SOCKS5...", category: .network)
-
-                if consecutiveFailures > maxRetries {
-                    logError("Auto-reconnect failed after \(maxRetries) attempts for \(session.connection.name). Giving up.", category: .network)
-                    await MainActor.run {
-                        ToastManager.shared.show(
-                            title: "SOCKS5 Proxy Disconnected",
-                            message: "SSH connection to \(session.connection.name) was lost. Proxy stopped.",
-                            type: .warning,
-                            duration: 5.0
-                        )
-                    }
-                    break
-                }
-
-                let success = await self.reconnectSession(connectionId: connectionId, session: session)
-                if success {
-                    consecutiveFailures = 0
-                    logInfo("SOCKS5 proxy reconnected for \(session.connection.name)", category: .network)
-                } else {
-                    // Wait longer before retry on failure
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
-                }
-            }
-        }
-
-        activeSessions[connectionId]?.monitorTask = task
-    }
-
-    /// Reconnects SSH + SOCKS5 for an active session
-    private func reconnectSession(connectionId: UUID, session: ActiveSession) async -> Bool {
-        // Stop old SOCKS5 server
-        await session.socksServer?.stop()
-        try? await session.client.close()
-
-        let connection = session.connection
-        let normalizedHost = (connection.host.lowercased() == "localhost") ? "127.0.0.1" : connection.host
-
-        do {
-            let newClient: SSHClient
-
-            if connection.authMethod == .password {
-                let authMethod: SSHAuthenticationMethod = .passwordBased(
-                    username: connection.username,
-                    password: session.password
-                )
-                newClient = try await SSHClient.connect(
-                    host: normalizedHost,
-                    port: connection.port,
-                    authenticationMethod: authMethod,
-                    hostKeyValidator: .acceptAnything(),
-                    reconnect: .never,
-                    group: session.eventLoopGroup
-                )
-            } else if let keyPath = connection.privateKeyPath {
-                let keyURL = URL(fileURLWithPath: keyPath)
-                let keyData = try Data(contentsOf: keyURL)
-                guard let keyString = String(data: keyData, encoding: .utf8) else {
-                    return false
-                }
-                let authMethod: SSHAuthenticationMethod = try .rsa(
-                    username: connection.username,
-                    privateKey: .init(sshRsa: keyString)
-                )
-                newClient = try await SSHClient.connect(
-                    host: normalizedHost,
-                    port: connection.port,
-                    authenticationMethod: authMethod,
-                    hostKeyValidator: .acceptAnything(),
-                    reconnect: .never,
-                    group: session.eventLoopGroup
-                )
-            } else {
-                return false
-            }
-
-            // Start new SOCKS5 proxy
-            var newSocksServer: Socks5ProxyServer? = nil
-            if connection.socksProxyEnabled && connection.socksProxyPort > 0 {
-                let server = Socks5ProxyServer(
-                    port: connection.socksProxyPort,
-                    sshClient: newClient,
-                    allowLAN: connection.socksProxyAllowLAN
-                )
-                try await server.start()
-                newSocksServer = server
-            }
-
-            // Update session with new client
-            await MainActor.run {
-                let oldTask = self.activeSessions[connectionId]?.monitorTask
-                self.activeSessions[connectionId] = ActiveSession(
-                    connection: connection,
-                    client: newClient,
-                    eventLoopGroup: session.eventLoopGroup,
-                    socksServer: newSocksServer,
-                    password: session.password,
-                    connectedAt: session.connectedAt,
-                    monitorTask: oldTask
-                )
-            }
-
-            return true
-        } catch {
-            logError("Failed to reconnect session for \(connection.name): \(error)", category: .network)
-            return false
-        }
-    }
 }
+
+
+

@@ -150,8 +150,15 @@ struct MenuBarContentView: View {
         return parts.joined(separator: " ")
     }
 
-    private func openMainWindow() {
+    private func ensureRegularActivation() {
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func openMainWindow() {
+        ensureRegularActivation()
         for window in NSApp.windows {
             if !window.title.contains("Terminal") &&
                !window.title.contains("Editor") &&
@@ -168,7 +175,7 @@ struct MenuBarContentView: View {
     }
 
     private func openFileBrowser(for connection: Connection) {
-        NSApp.activate(ignoringOtherApps: true)
+        ensureRegularActivation()
         let savedPassword = sessionManager.getCachedPassword(for: connection.id) ?? ""
         let windowData = FileBrowserWindowData(
             connectionId: connection.id,
@@ -189,7 +196,7 @@ struct MenuBarContentView: View {
     }
 
     private func openTerminal(for connection: Connection) {
-        NSApp.activate(ignoringOtherApps: true)
+        ensureRegularActivation()
         let savedPassword = sessionManager.getCachedPassword(for: connection.id) ?? ""
         let windowData = TerminalWindowData(
             connectionId: connection.id,

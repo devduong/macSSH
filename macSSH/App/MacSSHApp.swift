@@ -14,15 +14,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Restore Dock icon when app is reopened
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+
         if !flag {
             for window in sender.windows {
-                if !window.title.contains("Terminal") && !window.title.contains("Editor") && !window.title.contains("Info") {
+                if !window.title.contains("Terminal") && !window.title.contains("Editor") && !window.title.contains("Info") && window.level == .normal {
                     window.setIsVisible(true)
                     window.makeKeyAndOrderFront(nil)
                     return true
                 }
             }
-            if let window = sender.windows.first {
+            if let window = sender.windows.first(where: { $0.level == .normal && !$0.className.contains("StatusBar") }) {
                 window.setIsVisible(true)
                 window.makeKeyAndOrderFront(nil)
                 return true
@@ -30,8 +36,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return true
     }
-
-    private var hasShownBackgroundWarning = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Clean up any leftover temporary terminal scripts from previous sessions
@@ -42,29 +46,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await ConfigurationService.shared.autoLoadLastFileIfNeeded()
         }
 
-        // Monitor window closures to warn about SOCKS5 background crash risk
+        // Monitor window close notifications to hide Dock icon when no regular windows are open
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
             name: NSWindow.willCloseNotification,
             object: nil
         )
+
+        // Monitor window key notifications to restore Dock icon when a window becomes active
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidBecomeKey(_:)),
+            name: NSWindow.didBecomeKeyNotification,
+            object: nil
+        )
+    }
+
+    @objc private func windowDidBecomeKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.level == .normal,
+              !window.className.contains("StatusBar"),
+              !window.className.contains("MenuBar") else { return }
+
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
     }
 
     @objc private func windowWillClose(_ notification: Notification) {
-        guard !hasShownBackgroundWarning else { return }
-
-        // All checks must happen on main actor since activeSessions is @MainActor-isolated
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-
-            // Check if any SOCKS5 proxy session is active
-            let hasActiveSocks = ConnectionSessionManager.shared.activeSessions.values.contains {
-                $0.socksServer != nil
-            }
-            guard hasActiveSocks else { return }
-
-            // Count remaining visible windows (excluding the one being closed and menu bar)
+        DispatchQueue.main.async {
             let closingWindow = notification.object as? NSWindow
             let remainingVisible = NSApp.windows.filter {
                 $0 != closingWindow &&
@@ -75,29 +86,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if remainingVisible.isEmpty {
-                self.showBackgroundSocksWarning(for: closingWindow)
+                // Hide icon from Dock when running purely in background on Menu Bar
+                NSApp.setActivationPolicy(.accessory)
             }
-        }
-    }
-
-    private func showBackgroundSocksWarning(for window: NSWindow?) {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = L10n.tr("bg_socks5_warning_title")
-        alert.informativeText = L10n.tr("bg_socks5_warning_msg")
-        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_close"))       // Button 1: "Đóng" (Close)
-        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_dont_close"))  // Button 2: "Không đóng" (Don't Close)
-
-        let response = alert.runModal()
-        if response == .alertSecondButtonReturn {
-            // User chose "Không đóng" -> Keep window open and bring it to front
-            self.hasShownBackgroundWarning = false
-            window?.setIsVisible(true)
-            window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-        } else {
-            // User chose "Đóng" -> Proceed to background, don't ask again during this session
-            self.hasShownBackgroundWarning = true
         }
     }
 
