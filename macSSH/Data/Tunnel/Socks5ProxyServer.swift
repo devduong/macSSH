@@ -492,18 +492,12 @@ private final class SocksSessionCoordinator: @unchecked Sendable {
         connection.cancel()
 
         if closingChannel, let channel = chan {
+            // Safe full-close on the correct event loop.
+            // Do NOT use half-close (.output) — it can trigger NIO/NIOSSH precondition
+            // failures during cascading teardown when the SSH transport dies unexpectedly.
             channel.eventLoop.execute {
                 guard channel.isActive else { return }
-                // Half-close output (send EOF) first so NIOSSH remains in halfClosedLocal,
-                // allowing pending window adjusts and remaining inbound reads to finish cleanly
-                channel.close(mode: .output, promise: nil)
-
-                // Safety net: force full closure after 5s if remote never closes
-                _ = channel.eventLoop.scheduleTask(in: .seconds(5)) {
-                    if channel.isActive {
-                        channel.close(mode: .all, promise: nil)
-                    }
-                }
+                channel.close(mode: .all, promise: nil)
             }
         }
     }
@@ -523,7 +517,7 @@ private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Send
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        guard !coordinator.isTerminated else { return }
+        guard !coordinator.isTerminated, context.channel.isActive else { return }
 
         let buffer = unwrapInboundIn(data)
         let bytes = Data(buffer.readableBytesView)
@@ -544,6 +538,9 @@ private final class Socks5InboundHandler: ChannelInboundHandler, @unchecked Send
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         coordinator.terminate(closingChannel: false)
+        if context.channel.isActive {
+            context.close(promise: nil)
+        }
     }
 }
 

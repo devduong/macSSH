@@ -19,11 +19,12 @@ final class ConnectionSessionManager: ObservableObject {
 
     struct ActiveSession {
         let connection: Connection
-        let client: SSHClient
+        var client: SSHClient
         let eventLoopGroup: MultiThreadedEventLoopGroup
         var socksServer: Socks5ProxyServer?
         let password: String
         let connectedAt: Date
+        var monitorTask: Task<Void, Never>?
     }
 
     @Published private(set) var activeSessions: [UUID: ActiveSession] = [:]
@@ -172,6 +173,11 @@ final class ConnectionSessionManager: ObservableObject {
         activeSessions[connection.id] = session
         WindowManager.shared.markConnectionActive(connection.id)
         logInfo("Session established and retained for \(connection.name) (proxy: \(effectiveProxyEnabled ? "ON:\(connection.socksProxyPort)" : "OFF"))", category: .network)
+
+        // Start background health monitor if SOCKS5 is active
+        if effectiveProxyEnabled && socksServer != nil {
+            startSessionMonitor(for: connection.id)
+        }
     }
 
     /// Checks if a SOCKS proxy port is currently active on another session
@@ -195,10 +201,13 @@ final class ConnectionSessionManager: ObservableObject {
     // MARK: - Disconnect
 
     func disconnect(_ connectionId: UUID) async {
-        guard let session = activeSessions.removeValue(forKey: connectionId) else {
+        guard var session = activeSessions.removeValue(forKey: connectionId) else {
             WindowManager.shared.markConnectionInactive(connectionId)
             return
         }
+
+        session.monitorTask?.cancel()
+        session.monitorTask = nil
 
         await session.socksServer?.stop()
         try? await session.client.close()
@@ -309,6 +318,147 @@ final class ConnectionSessionManager: ObservableObject {
                     duration: 5.0
                 )
             }
+        }
+    }
+
+    // MARK: - Session Health Monitor & Auto-Reconnect
+
+    /// Starts a background monitor that checks SSH connection health every 60 seconds.
+    /// If the SSH connection dies, automatically reconnects and restarts SOCKS5.
+    private func startSessionMonitor(for connectionId: UUID) {
+        // Cancel any existing monitor
+        activeSessions[connectionId]?.monitorTask?.cancel()
+
+        let task = Task { [weak self] in
+            var consecutiveFailures = 0
+            let maxRetries = 3
+
+            while !Task.isCancelled {
+                // Check every 60 seconds
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard !Task.isCancelled else { break }
+                guard let self = self else { break }
+
+                guard let session = await MainActor.run(body: { self.activeSessions[connectionId] }),
+                      session.socksServer != nil else {
+                    break
+                }
+
+                // Check if SSH is still alive
+                let isAlive = session.client.isConnected
+                if isAlive {
+                    consecutiveFailures = 0
+                    continue
+                }
+
+                // SSH connection died — attempt reconnect
+                consecutiveFailures += 1
+                logWarning("SSH connection lost for \(session.connection.name) (attempt \(consecutiveFailures)/\(maxRetries)), reconnecting SOCKS5...", category: .network)
+
+                if consecutiveFailures > maxRetries {
+                    logError("Auto-reconnect failed after \(maxRetries) attempts for \(session.connection.name). Giving up.", category: .network)
+                    await MainActor.run {
+                        ToastManager.shared.show(
+                            title: "SOCKS5 Proxy Disconnected",
+                            message: "SSH connection to \(session.connection.name) was lost. Proxy stopped.",
+                            type: .warning,
+                            duration: 5.0
+                        )
+                    }
+                    break
+                }
+
+                let success = await self.reconnectSession(connectionId: connectionId, session: session)
+                if success {
+                    consecutiveFailures = 0
+                    logInfo("SOCKS5 proxy reconnected for \(session.connection.name)", category: .network)
+                } else {
+                    // Wait longer before retry on failure
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                }
+            }
+        }
+
+        activeSessions[connectionId]?.monitorTask = task
+    }
+
+    /// Reconnects SSH + SOCKS5 for an active session
+    private func reconnectSession(connectionId: UUID, session: ActiveSession) async -> Bool {
+        // Stop old SOCKS5 server
+        await session.socksServer?.stop()
+        try? await session.client.close()
+
+        let connection = session.connection
+        let normalizedHost = (connection.host.lowercased() == "localhost") ? "127.0.0.1" : connection.host
+
+        do {
+            let newClient: SSHClient
+
+            if connection.authMethod == .password {
+                let authMethod: SSHAuthenticationMethod = .passwordBased(
+                    username: connection.username,
+                    password: session.password
+                )
+                newClient = try await SSHClient.connect(
+                    host: normalizedHost,
+                    port: connection.port,
+                    authenticationMethod: authMethod,
+                    hostKeyValidator: .acceptAnything(),
+                    reconnect: .never,
+                    group: session.eventLoopGroup
+                )
+            } else if let keyPath = connection.privateKeyPath {
+                let keyURL = URL(fileURLWithPath: keyPath)
+                let keyData = try Data(contentsOf: keyURL)
+                guard let keyString = String(data: keyData, encoding: .utf8) else {
+                    return false
+                }
+                let authMethod: SSHAuthenticationMethod = try .rsa(
+                    username: connection.username,
+                    privateKey: .init(sshRsa: keyString)
+                )
+                newClient = try await SSHClient.connect(
+                    host: normalizedHost,
+                    port: connection.port,
+                    authenticationMethod: authMethod,
+                    hostKeyValidator: .acceptAnything(),
+                    reconnect: .never,
+                    group: session.eventLoopGroup
+                )
+            } else {
+                return false
+            }
+
+            // Start new SOCKS5 proxy
+            var newSocksServer: Socks5ProxyServer? = nil
+            if connection.socksProxyEnabled && connection.socksProxyPort > 0 {
+                let server = Socks5ProxyServer(
+                    port: connection.socksProxyPort,
+                    sshClient: newClient,
+                    allowLAN: connection.socksProxyAllowLAN
+                )
+                try await server.start()
+                newSocksServer = server
+            }
+
+            // Update session with new client
+            await MainActor.run {
+                let oldTask = self.activeSessions[connectionId]?.monitorTask
+                self.activeSessions[connectionId] = ActiveSession(
+                    connection: connection,
+                    client: newClient,
+                    eventLoopGroup: session.eventLoopGroup,
+                    socksServer: newSocksServer,
+                    password: session.password,
+                    connectedAt: session.connectedAt,
+                    monitorTask: oldTask
+                )
+            }
+
+            return true
+        } catch {
+            logError("Failed to reconnect session for \(connection.name): \(error)", category: .network)
+            return false
         }
     }
 }
