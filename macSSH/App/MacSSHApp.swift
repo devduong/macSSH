@@ -75,19 +75,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if remainingVisible.isEmpty {
-                self.hasShownBackgroundWarning = true
-                self.showBackgroundSocksWarning()
+                self.showBackgroundSocksWarning(for: closingWindow)
             }
         }
     }
 
-    private func showBackgroundSocksWarning() {
+    private func showBackgroundSocksWarning(for window: NSWindow?) {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = L10n.tr("bg_socks5_warning_title")
         alert.informativeText = L10n.tr("bg_socks5_warning_msg")
-        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_dismiss"))
-        alert.runModal()
+        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_close"))       // Button 1: "Đóng" (Close)
+        alert.addButton(withTitle: L10n.tr("bg_socks5_warning_dont_close"))  // Button 2: "Không đóng" (Don't Close)
+
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            // User chose "Không đóng" -> Keep window open and bring it to front
+            self.hasShownBackgroundWarning = false
+            window?.setIsVisible(true)
+            window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            // User chose "Đóng" -> Proceed to background, don't ask again during this session
+            self.hasShownBackgroundWarning = true
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

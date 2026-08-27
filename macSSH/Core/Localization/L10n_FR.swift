@@ -200,8 +200,9 @@ public enum L10n_FR {
         "license_type": "Licence MIT",
 
         // MARK: - Background SOCKS5 Warning
-        "bg_socks5_warning_title": "Proxy SOCKS5 actif",
-        "bg_socks5_warning_msg": "L'exécution de l'app en arrière-plan avec un proxy SOCKS5 actif peut provoquer un crash en raison d'une limitation de la plateforme. Gardez la fenêtre ouverte ou déconnectez-vous avant de réduire.",
-        "bg_socks5_warning_dismiss": "J'ai compris"
+        "bg_socks5_warning_title": "Avertissement Proxy SOCKS5",
+        "bg_socks5_warning_msg": "Fermer l'application pour l'exécuter en arrière-plan peut provoquer un crash en raison d'un problème de plateforme.",
+        "bg_socks5_warning_close": "Fermer",
+        "bg_socks5_warning_dont_close": "Ne pas fermer"
     ]
 }

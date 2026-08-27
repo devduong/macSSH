@@ -200,8 +200,9 @@ public enum L10n_ZH_Hant {
         "license_type": "MIT 授權",
 
         // MARK: - Background SOCKS5 Warning
-        "bg_socks5_warning_title": "SOCKS5 代理運行中",
-        "bg_socks5_warning_msg": "在背景模式下執行應用程式且 SOCKS5 代理處於活動狀態時，可能因平台限制導致閃退。建議保持應用程式視窗開啟或在縮小前中斷連線。",
-        "bg_socks5_warning_dismiss": "我知道了"
+        "bg_socks5_warning_title": "SOCKS5 代理警告",
+        "bg_socks5_warning_msg": "如果關閉應用程式並在背景模式下執行，可能會由於平台問題導致閃退。",
+        "bg_socks5_warning_close": "關閉",
+        "bg_socks5_warning_dont_close": "不關閉"
     ]
 }

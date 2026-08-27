@@ -200,8 +200,9 @@ public enum L10n_ZH_Hans {
         "license_type": "MIT 协议",
 
         // MARK: - Background SOCKS5 Warning
-        "bg_socks5_warning_title": "SOCKS5 代理运行中",
-        "bg_socks5_warning_msg": "在后台模式下运行应用且 SOCKS5 代理处于活动状态时，可能因平台限制导致崩溃。建议保持应用窗口打开或在最小化前断开连接。",
-        "bg_socks5_warning_dismiss": "我知道了"
+        "bg_socks5_warning_title": "SOCKS5 代理警告",
+        "bg_socks5_warning_msg": "如果关闭应用并在后台模式下运行，可能会由于平台问题导致崩溃。",
+        "bg_socks5_warning_close": "关闭",
+        "bg_socks5_warning_dont_close": "不关闭"
     ]
 }
