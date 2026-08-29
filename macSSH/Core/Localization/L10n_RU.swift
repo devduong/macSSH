@@ -203,6 +203,16 @@ public enum L10n_RU {
         "bg_socks5_warning_title": "Предупреждение SOCKS5 прокси",
         "bg_socks5_warning_msg": "Закрытие приложения для работы в фоновом режиме может привести к сбою из-за проблемы платформы.",
         "bg_socks5_warning_close": "Закрыть",
-        "bg_socks5_warning_dont_close": "Не закрывать"
+        "bg_socks5_warning_dont_close": "Не закрывать",
+
+        // MARK: - Internet Connectivity
+        "internet_lost_title": "Подключение к Интернету потеряно",
+        "internet_lost_msg": "Ваш Mac потерял подключение к Интернету. Активные соединения могут быть прерваны.",
+        "internet_restored_title": "Интернет восстановлен",
+        "internet_restored_msg": "Повторное подключение активных сеансов SSH и прокси SOCKS5...",
+        "no_internet": "Нет Интернета",
+        "reconnecting": "Переподключение…",
+        "reconnect_success": "Успешно переподключено",
+        "reconnect_failed": "Ошибка переподключения"
     ]
 }

@@ -28,9 +28,102 @@ final class ConnectionSessionManager: ObservableObject {
 
     @Published private(set) var activeSessions: [UUID: ActiveSession] = [:]
     @Published private(set) var connectingIds: Set<UUID> = []
+    @Published private(set) var isInternetAvailable: Bool = true
     private var cachedPasswords: [UUID: String] = [:]
+    private var internetObserver: Any?
 
-    private init() {}
+    private init() {
+        setupInternetMonitoring()
+    }
+
+    // MARK: - Internet Monitoring
+
+    private func setupInternetMonitoring() {
+        // Force initialization of NetworkMonitor singleton
+        _ = NetworkMonitor.shared
+
+        internetObserver = NotificationCenter.default.addObserver(
+            forName: .internetStatusChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            let connected = notification.userInfo?["connected"] as? Bool ?? false
+            Task { @MainActor in
+                await self.handleInternetStatusChange(connected: connected)
+            }
+        }
+    }
+
+    private func handleInternetStatusChange(connected: Bool) async {
+        let previousState = isInternetAvailable
+        isInternetAvailable = connected
+        objectWillChange.send()
+
+        if !connected && previousState {
+            // ── Internet Lost ──
+            logWarning("Internet connection lost — all \(activeSessions.count) active session(s) marked as interrupted.", category: .network)
+        } else if connected && !previousState {
+            // ── Internet Restored ──
+            logInfo("Internet connection restored — starting reconnection for \(activeSessions.count) active session(s)...", category: .network)
+            await reconnectAllSessions()
+        }
+    }
+
+    /// Kills all SOCKS5 PIDs, closes stale SSH clients, and reconnects every active session
+    private func reconnectAllSessions() async {
+        let sessionsSnapshot = activeSessions
+        guard !sessionsSnapshot.isEmpty else {
+            logInfo("No active sessions to reconnect.", category: .network)
+            return
+        }
+
+        for (connectionId, session) in sessionsSnapshot {
+            let connName = session.connection.name
+            logInfo("[Reconnect] Processing session: \(connName) (ID: \(connectionId))", category: .network)
+
+            // 1. Kill SOCKS5 tunnel PID
+            if let tunnel = session.socksTunnel {
+                logInfo("[Reconnect] Stopping SOCKS5 tunnel on port \(tunnel.socksPort) for \(connName)...", category: .socks5)
+                await tunnel.stop()
+                logInfo("[Reconnect] SOCKS5 tunnel stopped for \(connName).", category: .socks5)
+            }
+
+            // 2. Close old SSH client
+            logInfo("[Reconnect] Closing stale SSH client for \(connName)...", category: .network)
+            try? await session.client.close()
+            try? await session.eventLoopGroup.shutdownGracefully()
+            logInfo("[Reconnect] Old SSH client closed for \(connName).", category: .network)
+
+            // 3. Remove old session
+            activeSessions.removeValue(forKey: connectionId)
+
+            // 4. Reconnect
+            let password = session.password.isEmpty ? (cachedPasswords[connectionId] ?? "") : session.password
+            logInfo("[Reconnect] Reconnecting to \(connName) (\(session.connection.host):\(session.connection.port))...", category: .network)
+
+            do {
+                try await connect(session.connection, password: password)
+                logSuccess("[Reconnect] ✅ Successfully reconnected to \(connName).", category: .network)
+            } catch {
+                logError("[Reconnect] ❌ Failed to reconnect to \(connName): \(error.localizedDescription)", category: .network)
+
+                // Show toast for failed reconnection
+                ToastManager.shared.show(
+                    title: L10n.tr("reconnect_failed"),
+                    message: "\(connName): \(error.localizedDescription)",
+                    type: .error,
+                    duration: 5.0
+                )
+
+                // Clean up the failed connection state
+                WindowManager.shared.markConnectionInactive(connectionId)
+            }
+        }
+
+        objectWillChange.send()
+        logInfo("[Reconnect] Reconnection process completed for all sessions.", category: .network)
+    }
 
     // MARK: - State queries
 

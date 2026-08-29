@@ -203,6 +203,16 @@ public enum L10n_ZH_Hans {
         "bg_socks5_warning_title": "SOCKS5 代理警告",
         "bg_socks5_warning_msg": "如果关闭应用并在后台模式下运行，可能会由于平台问题导致崩溃。",
         "bg_socks5_warning_close": "关闭",
-        "bg_socks5_warning_dont_close": "不关闭"
+        "bg_socks5_warning_dont_close": "不关闭",
+
+        // MARK: - Internet Connectivity
+        "internet_lost_title": "互联网连接已断开",
+        "internet_lost_msg": "您的 Mac 已断开互联网连接。活动连接可能会中断。",
+        "internet_restored_title": "互联网已恢复",
+        "internet_restored_msg": "正在重新连接活动的 SSH 会话和 SOCKS5 代理...",
+        "no_internet": "无网络",
+        "reconnecting": "正在重连…",
+        "reconnect_success": "重连成功",
+        "reconnect_failed": "重连失败"
     ]
 }

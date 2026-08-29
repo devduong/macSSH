@@ -24,6 +24,19 @@ struct MenuBarContentView: View {
 
     var body: some View {
         VStack {
+            // Internet status banner
+            if !NetworkMonitor.shared.isConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(L10n.tr("internet_lost_title"))
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundStyle(.red)
+
+                Divider()
+            }
+
             Button {
                 openMainWindow()
             } label: {
@@ -48,7 +61,7 @@ struct MenuBarContentView: View {
                             let proxyScope = connection.socksProxyAllowLAN ? "LAN + 127.0.0.1" : "127.0.0.1 only"
                             Text("SOCKS5 Proxy: :\(String(connection.socksProxyPort)) (\(proxyScope))")
                         }
-                        Text("\(L10n.tr("status")): \(isConnected ? L10n.tr("connected") : L10n.tr("disconnected"))")
+                        Text("\(L10n.tr("status")): \(isConnected ? (NetworkMonitor.shared.isConnected ? L10n.tr("connected") : L10n.tr("no_internet")) : L10n.tr("disconnected"))")
 
                         Divider()
 
@@ -91,7 +104,9 @@ struct MenuBarContentView: View {
                         }
                         .disabled(connection.connectionType != .sftp)
                     } label: {
-                        Text(verbatim: "\(isConnected ? "🟢" : "⚪️") \(connection.name) (\(connection.host))\(connection.socksProxyEnabled ? " [Proxy :\(String(connection.socksProxyPort))]" : "")")
+                        let internetDown = !NetworkMonitor.shared.isConnected
+                        let statusIcon = isConnected ? (internetDown ? "🔴" : "🟢") : "⚪️"
+                        Text(verbatim: "\(statusIcon) \(connection.name) (\(connection.host))\(connection.socksProxyEnabled ? " [Proxy :\(String(connection.socksProxyPort))]" : "")")
                     }
                 }
             }

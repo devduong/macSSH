@@ -203,6 +203,16 @@ public enum L10n_FR {
         "bg_socks5_warning_title": "Avertissement Proxy SOCKS5",
         "bg_socks5_warning_msg": "Fermer l'application pour l'exécuter en arrière-plan peut provoquer un crash en raison d'un problème de plateforme.",
         "bg_socks5_warning_close": "Fermer",
-        "bg_socks5_warning_dont_close": "Ne pas fermer"
+        "bg_socks5_warning_dont_close": "Ne pas fermer",
+
+        // MARK: - Internet Connectivity
+        "internet_lost_title": "Connexion Internet perdue",
+        "internet_lost_msg": "Votre Mac a perdu la connexion Internet. Les connexions actives peuvent être interrompues.",
+        "internet_restored_title": "Internet rétabli",
+        "internet_restored_msg": "Reconnexion des sessions SSH et proxys SOCKS5 en cours...",
+        "no_internet": "Pas d'Internet",
+        "reconnecting": "Reconnexion…",
+        "reconnect_success": "Reconnecté avec succès",
+        "reconnect_failed": "Échec de la reconnexion"
     ]
 }

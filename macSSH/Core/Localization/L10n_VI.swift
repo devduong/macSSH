@@ -203,6 +203,16 @@ public enum L10n_VI {
         "bg_socks5_warning_title": "Cảnh báo SOCKS5 Proxy",
         "bg_socks5_warning_msg": "Nếu đóng ứng dụng chạy ở chế độ nền có thể gây crash do vấn đề nền tảng.",
         "bg_socks5_warning_close": "Đóng",
-        "bg_socks5_warning_dont_close": "Không đóng"
+        "bg_socks5_warning_dont_close": "Không đóng",
+
+        // MARK: - Internet Connectivity
+        "internet_lost_title": "Mất kết nối Internet",
+        "internet_lost_msg": "Máy tính đã mất kết nối internet. Các kết nối đang hoạt động có thể bị gián đoạn.",
+        "internet_restored_title": "Đã có Internet trở lại",
+        "internet_restored_msg": "Đang kết nối lại các phiên SSH và SOCKS5 proxy...",
+        "no_internet": "Mất kết nối",
+        "reconnecting": "Đang kết nối lại…",
+        "reconnect_success": "Đã kết nối lại thành công",
+        "reconnect_failed": "Kết nối lại thất bại"
     ]
 }

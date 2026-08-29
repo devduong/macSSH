@@ -203,6 +203,16 @@ public enum L10n_ZH_Hant {
         "bg_socks5_warning_title": "SOCKS5 代理警告",
         "bg_socks5_warning_msg": "如果關閉應用程式並在背景模式下執行，可能會由於平台問題導致閃退。",
         "bg_socks5_warning_close": "關閉",
-        "bg_socks5_warning_dont_close": "不關閉"
+        "bg_socks5_warning_dont_close": "不關閉",
+
+        // MARK: - Internet Connectivity
+        "internet_lost_title": "網路連線已中斷",
+        "internet_lost_msg": "您的 Mac 已中斷網路連線。作用中的連線可能會受到影響。",
+        "internet_restored_title": "網路已恢復",
+        "internet_restored_msg": "正在重新連接作用中的 SSH 會話和 SOCKS5 代理...",
+        "no_internet": "無網路",
+        "reconnecting": "正在重連…",
+        "reconnect_success": "重連成功",
+        "reconnect_failed": "重連失敗"
     ]
 }

@@ -18,10 +18,18 @@ struct ConnectionRowView: View {
     var onFileBrowser: (() -> Void)? = nil
 
     @ObservedObject private var l10n = LocalizationManager.shared
+    @ObservedObject private var sessionManager = ConnectionSessionManager.shared
     @State private var isHovered = false
+    @State private var isPulsing = false
+
+    /// Whether this active connection is affected by internet outage
+    private var isInternetDown: Bool {
+        isActive && !sessionManager.isInternetAvailable
+    }
 
     private var iconColor: Color {
         if isConnecting { return .orange }
+        if isInternetDown { return .red }
         return isActive ? .green : .blue
     }
 
@@ -44,9 +52,10 @@ struct ConnectionRowView: View {
                             .offset(x: 2, y: 2)
                     } else {
                         Circle()
-                            .fill(isActive ? Color.green : Color.secondary.opacity(0.35))
+                            .fill(isInternetDown ? Color.red : (isActive ? Color.green : Color.secondary.opacity(0.35)))
                             .frame(width: 9, height: 9)
                             .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 1.5))
+                            .opacity(isInternetDown && isPulsing ? 0.4 : 1.0)
                             .offset(x: 2, y: 2)
                     }
                 }
@@ -154,6 +163,17 @@ struct ConnectionRowView: View {
                             }
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Color.orange.opacity(0.12), in: Capsule())
+                        } else if isInternetDown {
+                            HStack(spacing: 4) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 8, weight: .bold))
+                                Text(L10n.tr("no_internet"))
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.red.opacity(0.12), in: Capsule())
+                            .opacity(isPulsing ? 0.6 : 1.0)
                         } else if isActive {
                             HStack(spacing: 4) {
                                 Circle().fill(Color.green).frame(width: 5, height: 5)
@@ -233,5 +253,16 @@ struct ConnectionRowView: View {
         .frame(height: 82)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .onChange(of: isInternetDown) { _, newValue in
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    isPulsing = true
+                }
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPulsing = false
+                }
+            }
+        }
     }
 }
