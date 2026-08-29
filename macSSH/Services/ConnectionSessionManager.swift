@@ -31,6 +31,7 @@ final class ConnectionSessionManager: ObservableObject {
     @Published private(set) var isInternetAvailable: Bool = true
     private var cachedPasswords: [UUID: String] = [:]
     private var internetObserver: Any?
+    private var reconnectTask: Task<Void, Never>?
 
     private init() {
         setupInternetMonitoring()
@@ -61,26 +62,34 @@ final class ConnectionSessionManager: ObservableObject {
         objectWillChange.send()
 
         if !connected && previousState {
-            // ── Internet Lost ──
-            logWarning("Internet connection lost — all \(activeSessions.count) active session(s) marked as interrupted.", category: .network)
+            // ── Internet Lost ── Cancel any in-progress reconnect so the cycle resets
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            logWarning("Internet connection lost — all \(activeSessions.count) active session(s) marked as interrupted. Reconnect cycle reset.", category: .network)
         } else if connected && !previousState {
-            // ── Internet Restored ──
+            // ── Internet Restored ── Start reconnect cycle
             logInfo("Internet connection restored — starting reconnection for \(activeSessions.count) active session(s)...", category: .network)
-            await reconnectAllSessions()
+            reconnectTask?.cancel()
+            reconnectTask = Task { @MainActor in
+                await reconnectWithRetry()
+            }
         }
     }
 
-    /// Kills all SOCKS5 PIDs, closes stale SSH clients, and reconnects every active session
-    private func reconnectAllSessions() async {
-        let sessionsSnapshot = activeSessions
-        guard !sessionsSnapshot.isEmpty else {
+    /// Progressive retry: attempt immediately → wait 5s retry → wait 10s retry → stop
+    private func reconnectWithRetry() async {
+        let retryDelays: [UInt64] = [5, 10] // seconds to wait before 2nd and 3rd attempts
+
+        // Take snapshot of sessions that need reconnection
+        let sessionsToReconnect = activeSessions
+        guard !sessionsToReconnect.isEmpty else {
             logInfo("No active sessions to reconnect.", category: .network)
             return
         }
 
-        for (connectionId, session) in sessionsSnapshot {
+        // Clean up all old sessions first (kill PIDs, close clients)
+        for (connectionId, session) in sessionsToReconnect {
             let connName = session.connection.name
-            logInfo("[Reconnect] Processing session: \(connName) (ID: \(connectionId))", category: .network)
 
             // 1. Kill SOCKS5 tunnel PID
             if let tunnel = session.socksTunnel {
@@ -95,34 +104,87 @@ final class ConnectionSessionManager: ObservableObject {
             try? await session.eventLoopGroup.shutdownGracefully()
             logInfo("[Reconnect] Old SSH client closed for \(connName).", category: .network)
 
-            // 3. Remove old session
+            // 3. Remove old session entry
             activeSessions.removeValue(forKey: connectionId)
-
-            // 4. Reconnect
-            let password = session.password.isEmpty ? (cachedPasswords[connectionId] ?? "") : session.password
-            logInfo("[Reconnect] Reconnecting to \(connName) (\(session.connection.host):\(session.connection.port))...", category: .network)
-
-            do {
-                try await connect(session.connection, password: password)
-                logSuccess("[Reconnect] ✅ Successfully reconnected to \(connName).", category: .network)
-            } catch {
-                logError("[Reconnect] ❌ Failed to reconnect to \(connName): \(error.localizedDescription)", category: .network)
-
-                // Show toast for failed reconnection
-                ToastManager.shared.show(
-                    title: L10n.tr("reconnect_failed"),
-                    message: "\(connName): \(error.localizedDescription)",
-                    type: .error,
-                    duration: 5.0
-                )
-
-                // Clean up the failed connection state
-                WindowManager.shared.markConnectionInactive(connectionId)
-            }
         }
 
         objectWillChange.send()
-        logInfo("[Reconnect] Reconnection process completed for all sessions.", category: .network)
+
+        // Build list of sessions pending reconnection
+        var pendingSessions = sessionsToReconnect.map { (id: $0.key, session: $0.value) }
+        let maxAttempts = 1 + retryDelays.count // 1 immediate + 2 retries = 3 total
+
+        for attempt in 1...maxAttempts {
+            guard !Task.isCancelled else {
+                logWarning("[Reconnect] Retry cycle cancelled (internet lost again).", category: .network)
+                return
+            }
+
+            guard !pendingSessions.isEmpty else {
+                logSuccess("[Reconnect] All sessions reconnected successfully.", category: .network)
+                return
+            }
+
+            if attempt > 1 {
+                let delay = retryDelays[attempt - 2]
+                logInfo("[Reconnect] Waiting \(delay)s before retry attempt #\(attempt)...", category: .network)
+                do {
+                    try await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                } catch {
+                    logWarning("[Reconnect] Retry sleep interrupted (internet lost again).", category: .network)
+                    return
+                }
+
+                // Re-check internet and cancellation after sleep
+                guard !Task.isCancelled, isInternetAvailable else {
+                    logWarning("[Reconnect] Retry cycle aborted — internet unavailable or task cancelled.", category: .network)
+                    return
+                }
+            }
+
+            logInfo("[Reconnect] Attempt #\(attempt)/\(maxAttempts) for \(pendingSessions.count) session(s)...", category: .network)
+
+            var stillFailing: [(id: UUID, session: ActiveSession)] = []
+
+            for item in pendingSessions {
+                guard !Task.isCancelled else { return }
+
+                let connName = item.session.connection.name
+                let password = item.session.password.isEmpty ? (cachedPasswords[item.id] ?? "") : item.session.password
+
+                logInfo("[Reconnect] Connecting to \(connName) (\(item.session.connection.host):\(item.session.connection.port))...", category: .network)
+
+                do {
+                    try await connect(item.session.connection, password: password)
+                    logSuccess("[Reconnect] ✅ Reconnected to \(connName) on attempt #\(attempt).", category: .network)
+                } catch {
+                    logError("[Reconnect] ❌ Failed to reconnect \(connName) (attempt #\(attempt)): \(error.localizedDescription)", category: .network)
+                    stillFailing.append(item)
+
+                    if attempt == maxAttempts {
+                        // Final attempt failed — show toast and clean up
+                        ToastManager.shared.show(
+                            title: L10n.tr("reconnect_failed"),
+                            message: "\(connName): \(error.localizedDescription)",
+                            type: .error,
+                            duration: 5.0
+                        )
+                        WindowManager.shared.markConnectionInactive(item.id)
+                    }
+                }
+            }
+
+            pendingSessions = stillFailing
+        }
+
+        objectWillChange.send()
+
+        if pendingSessions.isEmpty {
+            logInfo("[Reconnect] Reconnection process completed — all sessions restored.", category: .network)
+        } else {
+            let failedNames = pendingSessions.map { $0.session.connection.name }.joined(separator: ", ")
+            logError("[Reconnect] Reconnection process completed — failed sessions: \(failedNames)", category: .network)
+        }
     }
 
     // MARK: - State queries
