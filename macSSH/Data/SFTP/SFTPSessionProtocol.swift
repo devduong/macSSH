@@ -77,6 +77,12 @@ protocol SFTPSessionProtocol: Sendable {
     /// Download a file with progress reporting
     func downloadFile(from remotePath: String, to localURL: URL, progress: TransferProgressHandler?) async throws
 
+    /// Download a file with optional multi-stream concurrency override and progress reporting
+    func downloadFile(from remotePath: String, to localURL: URL, streamCount: Int?, progress: TransferProgressHandler?) async throws
+
+    /// Configure preferred maximum concurrent transfer streams for the session (used by FTP)
+    func setPreferredMaxStreams(_ count: Int) async
+
     /// Upload a file
     func uploadFile(from localURL: URL, to remotePath: String) async throws
 
@@ -98,6 +104,17 @@ protocol SFTPSessionProtocol: Sendable {
 
 // MARK: - Default Implementations
 extension SFTPSessionProtocol {
+    func setPreferredMaxStreams(_ count: Int) async {}
+
+    func downloadFile(
+        from remotePath: String,
+        to localURL: URL,
+        streamCount: Int?,
+        progress: TransferProgressHandler?
+    ) async throws {
+        try await downloadFile(from: remotePath, to: localURL, progress: progress)
+    }
+
     func connect(
         host: String,
         port: Int,

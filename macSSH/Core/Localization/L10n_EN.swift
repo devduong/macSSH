@@ -227,6 +227,15 @@ public enum L10n_EN {
         "appearance_dark": "Dark",
         "switch_to_light": "Switch to Light Mode",
         "switch_to_dark": "Switch to Dark Mode",
-        "github_repository": "GitHub Repository"
+        "github_repository": "GitHub Repository",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "FTP Transfers",
+        "ftp_max_streams": "Concurrent FTP Streams",
+        "ftp_max_streams_desc": "Number of parallel connections used when uploading and downloading over FTP (default: 10).",
+        "ftp_custom_streams": "Custom Concurrent Streams",
+        "streams": "streams",
+        "replace_all": "Replace All",
+        "skip": "Skip"
     ]
 }

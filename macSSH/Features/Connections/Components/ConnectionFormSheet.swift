@@ -35,6 +35,7 @@ struct ConnectionFormSheet: View {
     let onCancel: () -> Void
 
     @ObservedObject private var l10n = LocalizationManager.shared
+    @ObservedObject private var ftpSettings = FTPTransferSettings.shared
 
     // Form fields
     @State private var connectionType: ConnectionType = .sftp
@@ -57,6 +58,10 @@ struct ConnectionFormSheet: View {
     @State private var socksProxyEnabled: Bool = false
     @State private var socksProxyPort: String = "1080"
     @State private var socksProxyAllowLAN: Bool = false
+
+    // FTP Multi-Stream Concurrency
+    @State private var useCustomFTPStreams: Bool = false
+    @State private var ftpMaxStreams: Int = FTPTransferConstants.defaultMaxStreams
 
     init(
         mode: ConnectionFormMode,
@@ -194,6 +199,32 @@ struct ConnectionFormSheet: View {
                     }
                 }
 
+                // FTP Multi-Stream Settings (FTP only)
+                if connectionType == .ftp {
+                    Section(L10n.tr("ftp_transfers")) {
+                        Toggle(L10n.tr("ftp_custom_streams"), isOn: $useCustomFTPStreams)
+
+                        if useCustomFTPStreams {
+                            HStack {
+                                Text(L10n.tr("ftp_max_streams"))
+                                Spacer()
+                                Stepper(
+                                    value: $ftpMaxStreams,
+                                    in: FTPTransferConstants.minStreams...FTPTransferConstants.maxStreams
+                                ) {
+                                    Text("\(ftpMaxStreams) \(L10n.tr("streams"))")
+                                        .font(.system(.body, design: .monospaced))
+                                        .fontWeight(.medium)
+                                }
+                            }
+                        } else {
+                            Text("\(L10n.tr("ftp_max_streams")): \(ftpSettings.maxConcurrentStreams) \(L10n.tr("streams"))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // Organization
                 Section(loc("Organization", "Nhóm & Thư mục")) {
                     Picker(loc("Folder", "Thư mục"), selection: $selectedFolderId) {
@@ -304,11 +335,19 @@ struct ConnectionFormSheet: View {
             socksProxyEnabled = connection.socksProxyEnabled
             socksProxyPort = String(connection.socksProxyPort)
             socksProxyAllowLAN = connection.socksProxyAllowLAN
+            if let customStreams = connection.ftpMaxStreams, customStreams > 0 {
+                useCustomFTPStreams = true
+                ftpMaxStreams = FTPTransferSettings.clamped(customStreams)
+            } else {
+                useCustomFTPStreams = false
+                ftpMaxStreams = ftpSettings.maxConcurrentStreams
+            }
 
             if let saved = savedPassword {
                 password = saved
             }
         case .create:
+            ftpMaxStreams = ftpSettings.maxConcurrentStreams
             if selectedFolderId == nil, let defaultFolderId {
                 selectedFolderId = defaultFolderId
             }
@@ -331,6 +370,9 @@ struct ConnectionFormSheet: View {
         }()
         let resolvedAuthMethod: AuthMethod = connectionType.supportsPrivateKey ? authMethod : .password
         let resolvedSocksEnabled = connectionType.supportsSocksProxy && socksProxyEnabled
+        let resolvedFtpStreams: Int? = (connectionType == .ftp && useCustomFTPStreams)
+            ? FTPTransferSettings.clamped(ftpMaxStreams)
+            : nil
 
         let connection: Connection
         if case .edit(let existing) = mode {
@@ -352,7 +394,8 @@ struct ConnectionFormSheet: View {
                 connectionType: connectionType,
                 socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
-                socksProxyAllowLAN: socksProxyAllowLAN
+                socksProxyAllowLAN: socksProxyAllowLAN,
+                ftpMaxStreams: resolvedFtpStreams
             )
         } else {
             connection = Connection(
@@ -370,7 +413,8 @@ struct ConnectionFormSheet: View {
                 connectionType: connectionType,
                 socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
-                socksProxyAllowLAN: socksProxyAllowLAN
+                socksProxyAllowLAN: socksProxyAllowLAN,
+                ftpMaxStreams: resolvedFtpStreams
             )
         }
 

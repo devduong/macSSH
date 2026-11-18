@@ -227,6 +227,15 @@ public enum L10n_FR {
         "appearance_dark": "Sombre",
         "switch_to_light": "Passer en mode clair",
         "switch_to_dark": "Passer en mode sombre",
-        "github_repository": "Dépôt GitHub"
+        "github_repository": "Dépôt GitHub",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "Transferts FTP",
+        "ftp_max_streams": "Flux FTP simultanés",
+        "ftp_max_streams_desc": "Nombre de connexions parallèles utilisées pour les transferts FTP (par défaut : 10).",
+        "ftp_custom_streams": "Flux simultanés personnalisés",
+        "streams": "flux",
+        "replace_all": "Tout remplacer",
+        "skip": "Ignorer"
     ]
 }

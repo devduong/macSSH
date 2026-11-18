@@ -28,7 +28,8 @@ enum ConnectionMapper {
             connectionType: ConnectionType(rawValue: entity.connectionType) ?? .sftp,
             socksProxyEnabled: entity.socksProxyEnabled,
             socksProxyPort: entity.socksProxyPort,
-            socksProxyAllowLAN: entity.socksProxyAllowLAN
+            socksProxyAllowLAN: entity.socksProxyAllowLAN,
+            ftpMaxStreams: entity.ftpMaxStreams > 0 ? entity.ftpMaxStreams : nil
         )
     }
 
@@ -49,6 +50,7 @@ enum ConnectionMapper {
         entity.socksProxyEnabled = domain.socksProxyEnabled
         entity.socksProxyPort = domain.socksProxyPort
         entity.socksProxyAllowLAN = domain.socksProxyAllowLAN
+        entity.ftpMaxStreams = domain.ftpMaxStreams ?? 0
     }
 
     /// Creates a new ConnectionEntity from a Connection domain model
@@ -70,7 +72,8 @@ enum ConnectionMapper {
             connectionType: domain.connectionType.rawValue,
             socksProxyEnabled: domain.socksProxyEnabled,
             socksProxyPort: domain.socksProxyPort,
-            socksProxyAllowLAN: domain.socksProxyAllowLAN
+            socksProxyAllowLAN: domain.socksProxyAllowLAN,
+            ftpMaxStreams: domain.ftpMaxStreams ?? 0
         )
     }
 }

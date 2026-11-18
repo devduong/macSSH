@@ -38,6 +38,12 @@ protocol FileRepositoryProtocol: Sendable {
     /// Downloads a file to local storage with progress reporting
     func download(remotePath: String, to localURL: URL, progress: TransferProgressHandler?) async throws
 
+    /// Downloads a file to local storage with optional multi-stream concurrency override
+    func download(remotePath: String, to localURL: URL, streamCount: Int?, progress: TransferProgressHandler?) async throws
+
+    /// Sets preferred maximum concurrent transfer streams on the underlying session
+    func setPreferredMaxStreams(_ count: Int) async
+
     /// Uploads a file from local storage
     func upload(localURL: URL, to remotePath: String) async throws
 
@@ -52,4 +58,17 @@ protocol FileRepositoryProtocol: Sendable {
 
     /// Gets the real path (resolves symlinks and ~)
     func getRealPath(at path: String) async throws -> String
+}
+
+extension FileRepositoryProtocol {
+    func setPreferredMaxStreams(_ count: Int) async {}
+
+    func download(
+        remotePath: String,
+        to localURL: URL,
+        streamCount: Int?,
+        progress: TransferProgressHandler?
+    ) async throws {
+        try await download(remotePath: remotePath, to: localURL, progress: progress)
+    }
 }

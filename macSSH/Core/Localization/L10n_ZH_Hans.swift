@@ -227,6 +227,15 @@ public enum L10n_ZH_Hans {
         "appearance_dark": "深色",
         "switch_to_light": "切换至浅色模式",
         "switch_to_dark": "切换至深色模式",
-        "github_repository": "GitHub 仓库"
+        "github_repository": "GitHub 仓库",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "FTP 传输",
+        "ftp_max_streams": "FTP 并发线程数",
+        "ftp_max_streams_desc": "通过 FTP 上传和下载时使用的并发连接线程数（默认：10）。",
+        "ftp_custom_streams": "自定义并发线程数",
+        "streams": "线程",
+        "replace_all": "全部替换",
+        "skip": "跳过"
     ]
 }

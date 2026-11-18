@@ -28,6 +28,7 @@ struct AppSettingsData: Codable, Sendable {
     var lockBeforeConnection: Bool?
     var lockAfterInactivity: Bool?
     var inactivityTimeoutSeconds: Int?
+    var ftpMaxConcurrentStreams: Int?
 }
 
 struct EncryptedCredentialItem: Codable, Sendable {
@@ -95,7 +96,8 @@ final class ConfigurationService: ObservableObject {
             lockOnAppResume: appLock.lockOnAppResume,
             lockBeforeConnection: appLock.lockBeforeConnection,
             lockAfterInactivity: appLock.lockAfterInactivity,
-            inactivityTimeoutSeconds: appLock.inactivityTimeout.rawValue
+            inactivityTimeoutSeconds: appLock.inactivityTimeout.rawValue,
+            ftpMaxConcurrentStreams: FTPTransferSettings.shared.maxConcurrentStreams
         )
 
         // Encrypt credentials with hardware-bound AES-256-GCM
@@ -314,6 +316,9 @@ final class ConfigurationService: ObservableObject {
             if let timeoutSeconds = settings.inactivityTimeoutSeconds,
                let timeout = InactivityTimeout(rawValue: timeoutSeconds) {
                 appLock.inactivityTimeout = timeout
+            }
+            if let ftpStreams = settings.ftpMaxConcurrentStreams {
+                FTPTransferSettings.shared.maxConcurrentStreams = FTPTransferSettings.clamped(ftpStreams)
             }
         }
 

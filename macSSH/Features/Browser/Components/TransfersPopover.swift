@@ -150,6 +150,10 @@ struct TransferItemView: View {
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
+                } else if transfer.status == .pending {
+                    Text(L10n.tr("pending", default: "Queued"))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
                 } else if transfer.isComplete {
                     Text(transfer.totalSizeText)
                         .font(.system(size: 10))
@@ -167,14 +171,14 @@ struct TransferItemView: View {
             }
 
             // Trailing action — always rendered to prevent layout shifts on hover
-            Button(action: transfer.isInProgress ? onCancel : onRemove) {
+            Button(action: transfer.isCancellable ? onCancel : onRemove) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: transfer.isInProgress ? 16 : 14))
+                    .font(.system(size: transfer.isCancellable ? 16 : 14))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .opacity(transfer.isInProgress || isHovering ? 1 : 0)
-            .help(transfer.isInProgress
+            .opacity(transfer.isCancellable || isHovering ? 1 : 0)
+            .help(transfer.isCancellable
                 ? (transfer.transferType == .download ? "Cancel download" : "Cancel upload")
                 : "Remove from list")
             .frame(width: 20, alignment: .center)

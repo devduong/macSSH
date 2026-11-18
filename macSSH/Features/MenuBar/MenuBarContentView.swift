@@ -218,7 +218,8 @@ struct MenuBarContentView: View {
             connectionType: connection.connectionType,
             socksProxyEnabled: connection.socksProxyEnabled,
             socksProxyPort: connection.socksProxyPort,
-            socksProxyAllowLAN: connection.socksProxyAllowLAN
+            socksProxyAllowLAN: connection.socksProxyAllowLAN,
+            ftpMaxStreams: connection.ftpMaxStreams
         )
         let windowId = WindowManager.shared.storeFileBrowserData(windowData)
         openWindow(id: WindowID.fileBrowser, value: windowId)

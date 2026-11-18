@@ -14,7 +14,7 @@ struct TransferProgress: Identifiable, Sendable {
     let localURL: URL?
     let remotePath: String
     let totalBytes: Int64
-    let startTime: Date
+    var startTime: Date
     let transferType: TransferType
 
     /// Number of bytes transferred so far
@@ -109,6 +109,11 @@ struct TransferProgress: Identifiable, Sendable {
     /// Whether the transfer is still in progress
     var isInProgress: Bool {
         status == .inProgress
+    }
+
+    /// Whether the transfer can be cancelled (queued or active)
+    var isCancellable: Bool {
+        status == .inProgress || status == .pending
     }
 
     /// Total size formatted

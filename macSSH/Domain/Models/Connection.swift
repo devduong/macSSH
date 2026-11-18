@@ -40,6 +40,9 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
     var socksProxyPort: Int
     var socksProxyAllowLAN: Bool
 
+    // FTP Multi-Stream Transfer Concurrency (nil = use global default, 10)
+    var ftpMaxStreams: Int?
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -58,7 +61,8 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         connectionType: ConnectionType = .sftp,
         socksProxyEnabled: Bool = false,
         socksProxyPort: Int = 1080,
-        socksProxyAllowLAN: Bool = false
+        socksProxyAllowLAN: Bool = false,
+        ftpMaxStreams: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -78,6 +82,7 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         self.socksProxyEnabled = socksProxyEnabled
         self.socksProxyPort = socksProxyPort
         self.socksProxyAllowLAN = socksProxyAllowLAN
+        self.ftpMaxStreams = ftpMaxStreams
     }
 
     // MARK: - Computed Properties

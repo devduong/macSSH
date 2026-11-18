@@ -507,7 +507,8 @@ final class ConnectionListViewModel {
             privateKeyPath: connection.privateKeyPath,
             connectionType: connection.connectionType,
             socksProxyEnabled: connection.socksProxyEnabled,
-            socksProxyPort: connection.socksProxyPort
+            socksProxyPort: connection.socksProxyPort,
+            ftpMaxStreams: connection.ftpMaxStreams
         )
 
         let windowId = windowManager.storeFileBrowserData(data)
@@ -573,7 +574,8 @@ final class ConnectionListViewModel {
             folderId: connection.folderId,
             connectionType: connection.connectionType,
             socksProxyEnabled: connection.socksProxyEnabled,
-            socksProxyPort: connection.socksProxyPort
+            socksProxyPort: connection.socksProxyPort,
+            ftpMaxStreams: connection.ftpMaxStreams
         )
 
 

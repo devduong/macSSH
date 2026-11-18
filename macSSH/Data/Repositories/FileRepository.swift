@@ -62,6 +62,14 @@ final class FileRepository: FileRepositoryProtocol, @unchecked Sendable {
         try await sftpSession.downloadFile(from: remotePath, to: localURL, progress: progress)
     }
 
+    func download(remotePath: String, to localURL: URL, streamCount: Int?, progress: TransferProgressHandler?) async throws {
+        try await sftpSession.downloadFile(from: remotePath, to: localURL, streamCount: streamCount, progress: progress)
+    }
+
+    func setPreferredMaxStreams(_ count: Int) async {
+        await sftpSession.setPreferredMaxStreams(count)
+    }
+
     func upload(localURL: URL, to remotePath: String) async throws {
         try await sftpSession.uploadFile(from: localURL, to: remotePath)
     }

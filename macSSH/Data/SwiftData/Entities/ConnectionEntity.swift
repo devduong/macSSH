@@ -32,6 +32,9 @@ final class ConnectionEntity {
     var socksProxyPort: Int = 1080
     var socksProxyAllowLAN: Bool = false
 
+    // FTP Multi-Stream Transfer Concurrency (0 = use global default, 10)
+    var ftpMaxStreams: Int = 0
+
     var folder: FolderEntity?
 
     init(
@@ -51,7 +54,8 @@ final class ConnectionEntity {
         connectionType: String = "sftp",
         socksProxyEnabled: Bool = false,
         socksProxyPort: Int = 1080,
-        socksProxyAllowLAN: Bool = false
+        socksProxyAllowLAN: Bool = false,
+        ftpMaxStreams: Int = 0
     ) {
         self.id = id
         self.name = name
@@ -70,6 +74,7 @@ final class ConnectionEntity {
         self.socksProxyEnabled = socksProxyEnabled
         self.socksProxyPort = socksProxyPort
         self.socksProxyAllowLAN = socksProxyAllowLAN
+        self.ftpMaxStreams = ftpMaxStreams
     }
 }
 

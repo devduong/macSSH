@@ -28,6 +28,7 @@ struct TransferQueueBottomPanel: View {
     @State private var selectedTab: TransferQueueTab = .uploads
     @State private var isExpanded: Bool = true
     @State private var panelHeight: CGFloat = 160
+    @State private var isShowingStreamSettingsPopover: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +78,61 @@ struct TransferQueueBottomPanel: View {
             }
 
             Spacer()
+
+            // FTP Multi-Stream Concurrency Control (FTP only)
+            if viewModel.connection.connectionType == .ftp {
+                Button {
+                    isShowingStreamSettingsPopover.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.horizontal.fill")
+                            .font(.system(size: 10))
+                        Text("\(viewModel.effectiveFTPStreams) \(L10n.tr("streams"))")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    }
+                    .foregroundStyle(.teal)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Color.teal.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(L10n.tr("ftp_max_streams"))
+                .popover(isPresented: $isShowingStreamSettingsPopover, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(L10n.tr("ftp_max_streams"))
+                            .font(.system(size: 12, weight: .semibold))
+
+                        Stepper(
+                            value: Binding(
+                                get: { viewModel.effectiveFTPStreams },
+                                set: { viewModel.setSessionFTPStreams($0) }
+                            ),
+                            in: FTPTransferConstants.minStreams...FTPTransferConstants.maxStreams
+                        ) {
+                            Text("\(viewModel.effectiveFTPStreams) \(L10n.tr("streams"))")
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        }
+
+                        HStack(spacing: 6) {
+                            ForEach([1, 5, 10, 20, 32], id: \.self) { count in
+                                Button("\(count)") {
+                                    viewModel.setSessionFTPStreams(count)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .tint(viewModel.effectiveFTPStreams == count ? .teal : nil)
+                            }
+                        }
+
+                        Text(L10n.tr("ftp_max_streams_desc"))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(width: 260)
+                }
+            }
 
             // Active Speed Summary
             if viewModel.hasActiveTransfers {
@@ -297,7 +353,7 @@ struct TransferQueueBottomPanel: View {
             .frame(width: 85, alignment: .trailing)
 
             // Action Button (Cancel)
-            if transfer.isInProgress {
+            if transfer.isCancellable {
                 Button {
                     viewModel.cancelTransfer(transfer)
                 } label: {

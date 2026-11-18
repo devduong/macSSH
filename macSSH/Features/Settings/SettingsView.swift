@@ -30,6 +30,7 @@ struct SettingsView: View {
 
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var appearanceManager = AppearanceManager.shared
+    @ObservedObject private var ftpSettings = FTPTransferSettings.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -129,6 +130,25 @@ struct SettingsView: View {
             }
 
             Text(L10n.tr("language_desc"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        Section(L10n.tr("ftp_transfers")) {
+            HStack {
+                Text(L10n.tr("ftp_max_streams"))
+                Spacer()
+                Stepper(
+                    value: $ftpSettings.maxConcurrentStreams,
+                    in: FTPTransferConstants.minStreams...FTPTransferConstants.maxStreams
+                ) {
+                    Text("\(ftpSettings.maxConcurrentStreams) \(L10n.tr("streams"))")
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.medium)
+                }
+            }
+
+            Text(L10n.tr("ftp_max_streams_desc"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

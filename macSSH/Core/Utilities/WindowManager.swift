@@ -24,6 +24,7 @@ struct FileBrowserWindowData: Sendable {
     let socksProxyPort: Int
     let socksProxyAllowLAN: Bool
     let savePassword: Bool
+    let ftpMaxStreams: Int?
 
     init(
         connectionId: UUID,
@@ -38,7 +39,8 @@ struct FileBrowserWindowData: Sendable {
         socksProxyEnabled: Bool = false,
         socksProxyPort: Int = 1080,
         socksProxyAllowLAN: Bool = false,
-        savePassword: Bool = false
+        savePassword: Bool = false,
+        ftpMaxStreams: Int? = nil
     ) {
         self.connectionId = connectionId
         self.connectionName = connectionName
@@ -53,6 +55,7 @@ struct FileBrowserWindowData: Sendable {
         self.socksProxyPort = socksProxyPort
         self.socksProxyAllowLAN = socksProxyAllowLAN
         self.savePassword = savePassword
+        self.ftpMaxStreams = ftpMaxStreams
     }
 }
 

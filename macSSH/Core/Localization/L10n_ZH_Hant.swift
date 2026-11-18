@@ -227,6 +227,15 @@ public enum L10n_ZH_Hant {
         "appearance_dark": "深色",
         "switch_to_light": "切換至淺色模式",
         "switch_to_dark": "切換至深色模式",
-        "github_repository": "GitHub 儲存庫"
+        "github_repository": "GitHub 儲存庫",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "FTP 傳輸",
+        "ftp_max_streams": "FTP 並行連線數",
+        "ftp_max_streams_desc": "透過 FTP 上傳與下載時使用的並行連線數量（預設：10）。",
+        "ftp_custom_streams": "自訂並行連線數",
+        "streams": "執行緒",
+        "replace_all": "全部取代",
+        "skip": "略過"
     ]
 }

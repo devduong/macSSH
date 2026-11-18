@@ -227,6 +227,15 @@ public enum L10n_RU {
         "appearance_dark": "Тёмная",
         "switch_to_light": "Переключиться на светлую тему",
         "switch_to_dark": "Переключиться на тёмную тему",
-        "github_repository": "Репозиторий GitHub"
+        "github_repository": "Репозиторий GitHub",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "Передача по FTP",
+        "ftp_max_streams": "Одновременные потоки FTP",
+        "ftp_max_streams_desc": "Количество параллельных потоков при загрузке и скачивании по FTP (по умолчанию: 10).",
+        "ftp_custom_streams": "Своё количество потоков",
+        "streams": "потоков",
+        "replace_all": "Заменить все",
+        "skip": "Пропустить"
     ]
 }

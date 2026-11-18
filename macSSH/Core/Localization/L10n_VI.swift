@@ -227,6 +227,15 @@ public enum L10n_VI {
         "appearance_dark": "Tối",
         "switch_to_light": "Chuyển sang giao diện Sáng",
         "switch_to_dark": "Chuyển sang giao diện Tối",
-        "github_repository": "Mã nguồn GitHub"
+        "github_repository": "Mã nguồn GitHub",
+
+        // MARK: - FTP Multi-Stream Transfers
+        "ftp_transfers": "Truyền tải FTP",
+        "ftp_max_streams": "Số luồng FTP đồng thời",
+        "ftp_max_streams_desc": "Số luồng kết nối song song dùng khi tải lên và tải xuống qua FTP (mặc định: 10).",
+        "ftp_custom_streams": "Tùy chỉnh số luồng truyền tải",
+        "streams": "luồng",
+        "replace_all": "Ghi đè tất cả",
+        "skip": "Bỏ qua"
     ]
 }

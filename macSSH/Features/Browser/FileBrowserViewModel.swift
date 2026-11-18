@@ -23,8 +23,27 @@ final class FileBrowserViewModel {
     private(set) var activeTransfers: [UUID: TransferProgress] = [:]
     private(set) var recentTransfers: [TransferProgress] = []  // Completed/failed transfers
     private var transferTasks: [UUID: Task<Void, Never>] = [:]  // Tasks for cancellation
+    private let transferLimiter = TransferConcurrencyLimiter(limit: 1)
+    var ftpStreamsOverride: Int? = nil
     var isShowingTransfersPopover: Bool = false
     var draggedRemoteFiles: [RemoteFile] = []
+
+    var effectiveFTPStreams: Int {
+        guard connection.connectionType == .ftp else { return 1 }
+        return FTPTransferSettings.clamped(
+            ftpStreamsOverride ?? connection.ftpMaxStreams ?? FTPTransferSettings.shared.maxConcurrentStreams
+        )
+    }
+
+    func setSessionFTPStreams(_ count: Int) {
+        let clamped = FTPTransferSettings.clamped(count)
+        ftpStreamsOverride = clamped
+        Task {
+            await transferLimiter.setLimit(clamped)
+            await fileRepository.setPreferredMaxStreams(clamped)
+        }
+        addLog("FTP concurrent streams set to \(clamped)", level: .info)
+    }
 
     /// Whether any transfer is currently in progress
     var hasActiveTransfers: Bool {
@@ -272,6 +291,14 @@ final class FileBrowserViewModel {
             isConnected = true
             isShowingPasswordPrompt = false
             isAuthFailed = false
+            if connection.connectionType == .ftp {
+                let streams = effectiveFTPStreams
+                await transferLimiter.setLimit(streams)
+                await fileRepository.setPreferredMaxStreams(streams)
+                addLog("FTP multi-stream enabled: \(streams) streams", level: .info)
+            } else {
+                await transferLimiter.setLimit(1)
+            }
             ConnectionSessionManager.shared.markConnected(for: connection.id)
             if !self.password.isEmpty {
                 ConnectionSessionManager.shared.cachePassword(self.password, for: connection.id)
@@ -673,6 +700,7 @@ final class FileBrowserViewModel {
             status: .inProgress
         )
         activeTransfers[transferId] = transfer
+        let streamCount: Int? = connection.connectionType == .ftp ? effectiveFTPStreams : nil
         addLog("Download started: \(file.name) (\(file.displaySize)) -> \(url.path)")
 
         let downloadTask = Task { [weak self] in
@@ -681,7 +709,7 @@ final class FileBrowserViewModel {
             do {
                 try Task.checkCancellation()
 
-                try await self.fileRepository.download(remotePath: file.path, to: url) { [weak self] bytesTransferred in
+                try await self.fileRepository.download(remotePath: file.path, to: url, streamCount: streamCount) { [weak self] bytesTransferred in
                     Task { @MainActor in
                         self?.updateTransferProgress(id: transferId, bytesTransferred: bytesTransferred)
                     }
@@ -772,20 +800,206 @@ final class FileBrowserViewModel {
         await downloadFilesToLocal([file], localDirectory: localState.currentURL)
     }
 
-    /// Download multiple files/folders into a destination local directory
+    /// Download multiple files/folders into a destination local directory (concurrently in FTP mode)
     func downloadFilesToLocal(_ files: [RemoteFile], localDirectory: URL) async {
+        var collectedItems: [(file: RemoteFile, localURL: URL)] = []
         for file in files {
             let destURL = localDirectory.appendingPathComponent(file.name)
-            await downloadItemToLocal(file: file, localURL: destURL)
+            await collectDownloadItems(file: file, localURL: destURL, into: &collectedItems)
         }
+
+        guard !collectedItems.isEmpty else {
+            await localState.loadFiles(silent: true)
+            return
+        }
+
+        // Resolve overwrite decisions upfront before dispatching parallel streams
+        var approvedItems: [(file: RemoteFile, localURL: URL)] = []
+        var replaceAll = false
+        let hasMultipleConflicts = collectedItems.filter { FileManager.default.fileExists(atPath: $0.localURL.path) }.count > 1
+
+        for item in collectedItems {
+            if FileManager.default.fileExists(atPath: item.localURL.path) && !replaceAll {
+                let decision = confirmOverwriteBatch(
+                    fileName: item.file.name,
+                    destinationDescription: item.localURL.deletingLastPathComponent().path,
+                    isUpload: false,
+                    allowReplaceAll: hasMultipleConflicts
+                )
+                switch decision {
+                case .replace:
+                    break
+                case .replaceAll:
+                    replaceAll = true
+                case .skip:
+                    addLog("Download skipped: '\(item.file.name)' already exists locally", level: .warning)
+                    continue
+                case .cancelAll:
+                    addLog("Download batch cancelled by user", level: .warning)
+                    await localState.loadFiles(silent: true)
+                    return
+                }
+            }
+            approvedItems.append(item)
+        }
+
+        guard !approvedItems.isEmpty else {
+            await localState.loadFiles(silent: true)
+            return
+        }
+
+        let maxConcurrent = connection.connectionType == .ftp ? effectiveFTPStreams : 1
+        await transferLimiter.setLimit(maxConcurrent)
+
+        // Distribute FTP streams across files in this batch (e.g. 1 file -> 10 streams, 10+ files -> 1 stream each)
+        let perFileStreams: Int? = connection.connectionType == .ftp
+            ? max(1, maxConcurrent / min(approvedItems.count, maxConcurrent))
+            : nil
+
+        if connection.connectionType == .ftp && (approvedItems.count > 1 || maxConcurrent > 1) {
+            addLog("Starting FTP download of \(approvedItems.count) file(s) using up to \(maxConcurrent) stream(s)", level: .info)
+        }
+
+        var batchTasks: [Task<Void, Never>] = []
+        batchTasks.reserveCapacity(approvedItems.count)
+
+        for item in approvedItems {
+            let transferId = UUID()
+            let transfer = TransferProgress(
+                id: transferId,
+                fileName: item.file.name,
+                localURL: item.localURL,
+                remotePath: item.file.path,
+                bytesTransferred: 0,
+                totalBytes: item.file.size,
+                transferType: .download,
+                status: .pending
+            )
+            activeTransfers[transferId] = transfer
+
+            let task = Task { [weak self] in
+                guard let self = self else { return }
+
+                do {
+                    try await self.transferLimiter.acquire()
+                    defer {
+                        Task { await self.transferLimiter.release() }
+                    }
+
+                    try Task.checkCancellation()
+
+                    await MainActor.run {
+                        if var active = self.activeTransfers[transferId] {
+                            active.status = .inProgress
+                            active.startTime = Date()
+                            self.activeTransfers[transferId] = active
+                        }
+                        self.addLog("Download started: \(item.file.name) (\(item.file.displaySize)) -> \(item.localURL.path)")
+                    }
+
+                    try await self.fileRepository.download(
+                        remotePath: item.file.path,
+                        to: item.localURL,
+                        streamCount: perFileStreams
+                    ) { [weak self] bytesTransferred in
+                        Task { @MainActor in
+                            self?.updateTransferProgress(id: transferId, bytesTransferred: bytesTransferred)
+                        }
+                    }
+
+                    try Task.checkCancellation()
+
+                    await MainActor.run {
+                        if var completedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
+                            completedTransfer.status = .completed
+                            completedTransfer.bytesTransferred = item.file.size
+                            self.recentTransfers.insert(completedTransfer, at: 0)
+                            if self.recentTransfers.count > 50 {
+                                self.recentTransfers = Array(self.recentTransfers.prefix(50))
+                            }
+                        }
+                        self.transferTasks.removeValue(forKey: transferId)
+                        self.addLog("Download complete: \(item.file.name) (\(item.file.displaySize))", level: .success)
+                    }
+
+                    AnalyticsService.trackFileDownloaded(protocol: .init(from: self.connection.connectionType), fileCount: 1, totalBytes: item.file.size)
+                    logInfo("Downloaded: \(item.file.name)", category: .sftp)
+                } catch {
+                    let isCancellation = error is CancellationError ||
+                        Task.isCancelled ||
+                        String(describing: error).contains("CancellationError")
+
+                    if isCancellation {
+                        await MainActor.run {
+                            if var cancelledTransfer = self.activeTransfers.removeValue(forKey: transferId) {
+                                cancelledTransfer.status = .cancelled
+                                self.recentTransfers.insert(cancelledTransfer, at: 0)
+                            }
+                            self.transferTasks.removeValue(forKey: transferId)
+                            self.addLog("Download cancelled: \(item.file.name)", level: .warning)
+                        }
+                        logInfo("Download cancelled: \(item.file.name)", category: .sftp)
+                    } else {
+                        await MainActor.run {
+                            if var failedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
+                                failedTransfer.status = .failed
+                                failedTransfer.error = error.localizedDescription
+                                self.recentTransfers.insert(failedTransfer, at: 0)
+                            }
+                            self.transferTasks.removeValue(forKey: transferId)
+                            self.addLog("Download failed: \(item.file.name) - \(error.localizedDescription)", level: .error)
+                            self.error = AppError.from(error)
+                        }
+                        logError("Failed to download file \(item.file.name): \(error)", category: .sftp)
+                    }
+                }
+            }
+
+            transferTasks[transferId] = task
+            batchTasks.append(task)
+        }
+
+        for task in batchTasks {
+            await task.value
+        }
+
         await localState.loadFiles(silent: true)
+    }
+
+    private func collectDownloadItems(file: RemoteFile, localURL: URL, into items: inout [(file: RemoteFile, localURL: URL)]) async {
+        if file.isDirectory {
+            try? FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
+            do {
+                let children = try await fileRepository.listFiles(at: file.path)
+                for child in children {
+                    let childDest = localURL.appendingPathComponent(child.name)
+                    await collectDownloadItems(file: child, localURL: childDest, into: &items)
+                }
+            } catch {
+                logError("Failed to list directory contents \(file.path): \(error)", category: .sftp)
+                addLog("Failed to list folder '\(file.name)': \(error.localizedDescription)", level: .error)
+            }
+        } else {
+            items.append((file, localURL))
+        }
     }
 
     // MARK: - Overwrite Confirmation Dialog
 
-    /// Displays an NSAlert modal asking the user whether to replace an existing file or cancel.
-    /// Returns true if the user confirmed replacement, false if cancelled.
-    private func confirmOverwrite(fileName: String, destinationDescription: String, isUpload: Bool) -> Bool {
+    private enum OverwriteDecision {
+        case replace
+        case replaceAll
+        case skip
+        case cancelAll
+    }
+
+    /// Displays an NSAlert modal asking the user whether to replace an existing file, replace all, skip, or cancel.
+    private func confirmOverwriteBatch(
+        fileName: String,
+        destinationDescription: String,
+        isUpload: Bool,
+        allowReplaceAll: Bool
+    ) -> OverwriteDecision {
         let alert = NSAlert()
         if isUpload {
             alert.messageText = L10n.tr("file_exists_remote_title")
@@ -796,51 +1010,31 @@ final class FileBrowserViewModel {
         }
         alert.alertStyle = .warning
         alert.addButton(withTitle: L10n.tr("replace"))
-        alert.addButton(withTitle: L10n.tr("cancel"))
+        if allowReplaceAll {
+            alert.addButton(withTitle: L10n.tr("replace_all"))
+            alert.addButton(withTitle: L10n.tr("skip"))
+            alert.addButton(withTitle: L10n.tr("cancel"))
+        } else {
+            alert.addButton(withTitle: L10n.tr("cancel"))
+        }
 
         let response = alert.runModal()
-        return response == .alertFirstButtonReturn
-    }
-
-    private func downloadItemToLocal(file: RemoteFile, localURL: URL) async {
-        if file.isDirectory {
-            try? FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
-            do {
-                let children = try await fileRepository.listFiles(at: file.path)
-                for child in children {
-                    let childDest = localURL.appendingPathComponent(child.name)
-                    await downloadItemToLocal(file: child, localURL: childDest)
-                }
-            } catch {
-                logError("Failed to download directory contents \(file.path): \(error)", category: .sftp)
-                addLog("Failed to download folder '\(file.name)': \(error.localizedDescription)", level: .error)
+        if allowReplaceAll {
+            switch response {
+            case .alertFirstButtonReturn: return .replace
+            case .alertSecondButtonReturn: return .replaceAll
+            case .alertThirdButtonReturn: return .skip
+            default: return .cancelAll
             }
         } else {
-            // Check if file already exists at local destination
-            if FileManager.default.fileExists(atPath: localURL.path) {
-                let shouldOverwrite = confirmOverwrite(
-                    fileName: file.name,
-                    destinationDescription: localURL.deletingLastPathComponent().path,
-                    isUpload: false
-                )
-                if !shouldOverwrite {
-                    addLog("Download skipped: '\(file.name)' already exists locally", level: .warning)
-                    return
-                }
-            }
-
-            do {
-                try await downloadFileToURL(file, destinationURL: localURL)
-            } catch {
-                logError("Failed to download file \(file.name): \(error)", category: .sftp)
-            }
+            return response == .alertFirstButtonReturn ? .replace : .skip
         }
     }
 
     func uploadFiles() async {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
         panel.canChooseFiles = true
 
         guard panel.runModal() == .OK else { return }
@@ -848,88 +1042,168 @@ final class FileBrowserViewModel {
         await uploadURLs(panel.urls)
     }
 
-    /// Core upload method that handles multiple files with progress tracking
+    /// Core upload method that handles multiple files and folders concurrently in FTP mode
     private func uploadURLs(_ urls: [URL], destinationDirectory: String? = nil) async {
         let targetDir = destinationDirectory ?? currentPath
+        var uploadItems: [(localURL: URL, remotePath: String, size: Int64)] = []
+        var directoriesToEnsure: [String] = []
 
         for url in urls {
             guard url.isFileURL else { continue }
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
 
-            let fileName = url.lastPathComponent
-            let remotePath = targetDir.appendingPathComponent(fileName)
-
-            // Check if file already exists on remote destination
-            var fileExistsOnRemote = false
-            if targetDir == currentPath {
-                fileExistsOnRemote = files.contains(where: { $0.name == fileName })
-            } else {
-                if let _ = try? await fileRepository.getFileInfo(at: remotePath) {
-                    fileExistsOnRemote = true
+            if isDir.boolValue {
+                let remoteBase = targetDir.appendingPathComponent(url.lastPathComponent)
+                directoriesToEnsure.append(remoteBase)
+                if let enumerator = FileManager.default.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey, .fileSizeKey],
+                    options: []
+                ) {
+                    let basePath = url.path
+                    while let itemURL = enumerator.nextObject() as? URL {
+                        let resourceValues = try? itemURL.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .fileSizeKey])
+                        let relativePath = String(itemURL.path.dropFirst(basePath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        guard !relativePath.isEmpty else { continue }
+                        let remoteChildPath = remoteBase.appendingPathComponent(relativePath)
+                        if resourceValues?.isDirectory == true {
+                            directoriesToEnsure.append(remoteChildPath)
+                        } else if resourceValues?.isRegularFile == true {
+                            let size = Int64(resourceValues?.fileSize ?? 0)
+                            uploadItems.append((itemURL, remoteChildPath, size))
+                        }
+                    }
                 }
+            } else {
+                let fileName = url.lastPathComponent
+                let remotePath = targetDir.appendingPathComponent(fileName)
+                let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+                uploadItems.append((url, remotePath, fileSize))
             }
+        }
 
-            if fileExistsOnRemote {
-                let shouldOverwrite = confirmOverwrite(
+        // Create any selected/nested remote directories (handles empty directories too)
+        for dirPath in directoriesToEnsure {
+            try? await fileRepository.createDirectory(at: dirPath)
+        }
+
+        guard !uploadItems.isEmpty else {
+            await loadFiles(silent: true)
+            return
+        }
+
+        // Check existing top-level collisions upfront in one remote listing
+        let existingTargetNames: Set<String>
+        if targetDir == currentPath {
+            existingTargetNames = Set(files.map(\.name))
+        } else {
+            let listed = (try? await fileRepository.listFiles(at: targetDir)) ?? []
+            existingTargetNames = Set(listed.map(\.name))
+        }
+
+        var approvedItems: [(localURL: URL, remotePath: String, size: Int64)] = []
+        var replaceAll = false
+        let topLevelConflicts = uploadItems.filter {
+            $0.remotePath.directoryPath == targetDir && existingTargetNames.contains($0.localURL.lastPathComponent)
+        }.count
+
+        for item in uploadItems {
+            let isTopLevel = item.remotePath.directoryPath == targetDir
+            let fileName = item.localURL.lastPathComponent
+            if isTopLevel && existingTargetNames.contains(fileName) && !replaceAll {
+                let decision = confirmOverwriteBatch(
                     fileName: fileName,
                     destinationDescription: targetDir,
-                    isUpload: true
+                    isUpload: true,
+                    allowReplaceAll: topLevelConflicts > 1
                 )
-                if !shouldOverwrite {
+                switch decision {
+                case .replace:
+                    break
+                case .replaceAll:
+                    replaceAll = true
+                case .skip:
                     addLog("Upload skipped: '\(fileName)' already exists on remote", level: .warning)
                     continue
+                case .cancelAll:
+                    addLog("Upload batch cancelled by user", level: .warning)
+                    return
                 }
             }
+            approvedItems.append(item)
+        }
 
-            let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+        guard !approvedItems.isEmpty else { return }
 
-            // Create transfer tracking entry
+        let maxConcurrent = connection.connectionType == .ftp ? effectiveFTPStreams : 1
+        await transferLimiter.setLimit(maxConcurrent)
+
+        if connection.connectionType == .ftp && approvedItems.count > 1 && maxConcurrent > 1 {
+            addLog("Starting FTP upload of \(approvedItems.count) file(s) using up to \(maxConcurrent) concurrent stream(s)", level: .info)
+        }
+
+        var batchTasks: [Task<Void, Never>] = []
+        batchTasks.reserveCapacity(approvedItems.count)
+
+        for item in approvedItems {
+            let fileName = item.localURL.lastPathComponent
             let transferId = UUID()
             let transfer = TransferProgress(
                 id: transferId,
                 fileName: fileName,
-                localURL: url,
-                remotePath: remotePath,
+                localURL: item.localURL,
+                remotePath: item.remotePath,
                 bytesTransferred: 0,
-                totalBytes: fileSize,
+                totalBytes: item.size,
                 transferType: .upload,
-                status: .inProgress
+                status: .pending
             )
             activeTransfers[transferId] = transfer
-            addLog("Upload started: \(fileName) (\(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file))) -> \(remotePath)")
 
-            // Create a task for this upload so it can be cancelled
             let uploadTask = Task { [weak self] in
                 guard let self = self else { return }
 
                 do {
-                    // Check for cancellation before starting
+                    try await self.transferLimiter.acquire()
+                    defer {
+                        Task { await self.transferLimiter.release() }
+                    }
+
                     try Task.checkCancellation()
 
-                    try await self.fileRepository.upload(localURL: url, to: remotePath) { [weak self] bytesTransferred in
+                    await MainActor.run {
+                        if var active = self.activeTransfers[transferId] {
+                            active.status = .inProgress
+                            active.startTime = Date()
+                            self.activeTransfers[transferId] = active
+                        }
+                        self.addLog("Upload started: \(fileName) (\(ByteCountFormatter.string(fromByteCount: item.size, countStyle: .file))) -> \(item.remotePath)")
+                    }
+
+                    try await self.fileRepository.upload(localURL: item.localURL, to: item.remotePath) { [weak self] bytesTransferred in
                         Task { @MainActor in
                             self?.updateTransferProgress(id: transferId, bytesTransferred: bytesTransferred)
                         }
                     }
 
-                    // Check for cancellation after upload
                     try Task.checkCancellation()
 
-                    // Mark as completed
                     await MainActor.run {
                         if var completedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
                             completedTransfer.status = .completed
-                            completedTransfer.bytesTransferred = fileSize
+                            completedTransfer.bytesTransferred = item.size
                             self.recentTransfers.insert(completedTransfer, at: 0)
                             if self.recentTransfers.count > 50 {
                                 self.recentTransfers = Array(self.recentTransfers.prefix(50))
                             }
                         }
                         self.transferTasks.removeValue(forKey: transferId)
-                        self.addLog("Upload complete: \(url.lastPathComponent) (\(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)))", level: .success)
+                        self.addLog("Upload complete: \(fileName) (\(ByteCountFormatter.string(fromByteCount: item.size, countStyle: .file)))", level: .success)
                     }
 
-                    AnalyticsService.trackFileUploaded(protocol: .init(from: self.connection.connectionType), fileCount: 1, totalBytes: fileSize)
-                    logInfo("Uploaded: \(url.lastPathComponent)", category: .sftp)
+                    AnalyticsService.trackFileUploaded(protocol: .init(from: self.connection.connectionType), fileCount: 1, totalBytes: item.size)
+                    logInfo("Uploaded: \(fileName)", category: .sftp)
 
                 } catch {
                     let isCancellation = error is CancellationError ||
@@ -943,9 +1217,9 @@ final class FileBrowserViewModel {
                                 self.recentTransfers.insert(cancelledTransfer, at: 0)
                             }
                             self.transferTasks.removeValue(forKey: transferId)
-                            self.addLog("Upload cancelled: \(url.lastPathComponent)", level: .warning)
+                            self.addLog("Upload cancelled: \(fileName)", level: .warning)
                         }
-                        logInfo("Upload cancelled: \(url.lastPathComponent)", category: .sftp)
+                        logInfo("Upload cancelled: \(fileName)", category: .sftp)
                     } else {
                         await MainActor.run {
                             if var failedTransfer = self.activeTransfers.removeValue(forKey: transferId) {
@@ -954,27 +1228,28 @@ final class FileBrowserViewModel {
                                 self.recentTransfers.insert(failedTransfer, at: 0)
                             }
                             self.transferTasks.removeValue(forKey: transferId)
-                            self.addLog("Upload failed: \(url.lastPathComponent) - \(error.localizedDescription)", level: .error)
+                            self.addLog("Upload failed: \(fileName) - \(error.localizedDescription)", level: .error)
                             self.error = AppError.from(error)
                         }
-
                         logError("Upload failed: \(error)", category: .sftp)
                     }
                 }
             }
 
             transferTasks[transferId] = uploadTask
+            batchTasks.append(uploadTask)
+        }
 
-            // Wait for this upload to complete before starting the next one
-            await uploadTask.value
+        for task in batchTasks {
+            await task.value
         }
 
         await loadFiles(silent: true)
     }
 
-    /// Cancels an active transfer
+    /// Cancels an active or queued transfer
     func cancelTransfer(_ transfer: TransferProgress) {
-        guard transfer.isInProgress else { return }
+        guard transfer.isCancellable else { return }
 
         // Cancel the task
         if let task = transferTasks[transfer.id] {
@@ -1319,6 +1594,62 @@ final class FileBrowserViewModel {
 
     func clearError() {
         error = nil
+    }
+}
+
+// MARK: - Transfer Concurrency Limiter
+private actor TransferConcurrencyLimiter {
+    private var limit: Int
+    private var running: Int = 0
+    private var waiters: [(id: UUID, continuation: CheckedContinuation<Void, Error>)] = []
+
+    init(limit: Int) {
+        self.limit = max(1, limit)
+    }
+
+    func setLimit(_ newLimit: Int) {
+        self.limit = max(1, newLimit)
+        drainWaiters()
+    }
+
+    func acquire() async throws {
+        try Task.checkCancellation()
+        if running < limit {
+            running += 1
+            return
+        }
+
+        let waiterId = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                waiters.append((waiterId, continuation))
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id: waiterId) }
+        }
+    }
+
+    func release() {
+        running = max(0, running - 1)
+        drainWaiters()
+    }
+
+    private func drainWaiters() {
+        while running < limit, !waiters.isEmpty {
+            let next = waiters.removeFirst()
+            running += 1
+            next.continuation.resume()
+        }
+    }
+
+    private func cancelWaiter(id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else { return }
+        let removed = waiters.remove(at: index)
+        removed.continuation.resume(throwing: CancellationError())
     }
 }
 
