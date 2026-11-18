@@ -21,14 +21,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         if !flag {
-            for window in sender.windows {
-                if !window.title.contains("Terminal") && !window.title.contains("Editor") && !window.title.contains("Info") && window.level == .normal {
-                    window.setIsVisible(true)
-                    window.makeKeyAndOrderFront(nil)
-                    return true
-                }
+            if let mainWindow = sender.windows.first(where: {
+                ($0.identifier?.rawValue.contains(WindowID.main) == true || $0.title == "macSSH") &&
+                $0.level == .normal &&
+                !$0.className.contains("StatusBar")
+            }) {
+                mainWindow.setIsVisible(true)
+                mainWindow.makeKeyAndOrderFront(nil)
+                return true
             }
-            if let window = sender.windows.first(where: { $0.level == .normal && !$0.className.contains("StatusBar") }) {
+            if let window = sender.windows.first(where: {
+                $0.level == .normal &&
+                !$0.className.contains("StatusBar") &&
+                !$0.title.contains("Terminal") &&
+                !$0.title.contains("Editor") &&
+                !$0.title.contains("Info") &&
+                !($0.identifier?.rawValue.contains(WindowID.about) == true) &&
+                !($0.identifier?.rawValue.contains(WindowID.donate) == true) &&
+                !$0.title.contains("Settings") &&
+                !$0.className.contains("Settings")
+            }) {
                 window.setIsVisible(true)
                 window.makeKeyAndOrderFront(nil)
                 return true
@@ -38,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Apply persisted Light/Dark/System appearance
+        AppearanceManager.shared.applyAppearance()
+
         // Clean up any leftover orphan ssh/socks processes and scripts from previous sessions/crashes
         NativeProcessRegistry.shared.cleanupOrphanProcesses()
         TerminalLauncherService.cleanupOldScripts()
@@ -151,6 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct MacSSHApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var container = DependencyContainer.shared
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     init() {
         AnalyticsService.initialize()
@@ -167,7 +183,7 @@ struct MacSSHApp: App {
         .modelContainer(container.modelContainer)
         .defaultSize(WindowSize.main)
         .commands {
-            appCommands
+            AppCommands()
         }
 
         // Menu Bar Status Item
@@ -226,19 +242,56 @@ struct MacSSHApp: App {
                 .toastOverlay()
                 .appLockOverlay()
         }
-    }
 
-    // MARK: - Commands
-    @CommandsBuilder
-    private var appCommands: some Commands {
+        // About Window
+        Window(L10n.tr("about"), id: WindowID.about) {
+            AboutSheetView()
+                .navigationTitle(L10n.tr("about"))
+                .toastOverlay()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
+        // Donate Window
+        Window(L10n.tr("donate"), id: WindowID.donate) {
+            DonateSheetView()
+                .navigationTitle(L10n.tr("donate"))
+                .toastOverlay()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+    }
+}
+
+// MARK: - Top Menu Bar Commands
+
+private struct AppCommands: Commands {
+    @ObservedObject private var l10n = LocalizationManager.shared
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
+    @FocusedValue(\.connectionMenuActions) private var connectionActions
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button(L10n.tr("about")) {
+                ensureRegularActivation()
+                openWindow(id: WindowID.about)
+            }
+
+            Button(L10n.tr("donate")) {
+                ensureRegularActivation()
+                openWindow(id: WindowID.donate)
+            }
+        }
+
         CommandGroup(replacing: .newItem) {
-            Button(L10n.tr("new_ssh_connection")) {
-                NotificationCenter.default.post(name: .newConnectionRequested, object: nil)
+            Button(L10n.tr("new_connection")) {
+                openMainWindowAndPost(.newConnectionRequested)
             }
             .keyboardShortcut("n", modifiers: .command)
 
             Button(L10n.tr("new_folder")) {
-                NotificationCenter.default.post(name: .newFolderRequested, object: nil)
+                openMainWindowAndPost(.newFolderRequested)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
 
@@ -256,9 +309,9 @@ struct MacSSHApp: App {
                 }
             }
             .keyboardShortcut("o", modifiers: .command)
-        }
 
-        CommandGroup(replacing: .saveItem) {
+            Divider()
+
             Button(L10n.tr("save_configuration")) {
                 Task {
                     try? await ConfigurationService.shared.save()
@@ -289,35 +342,93 @@ struct MacSSHApp: App {
         }
 
         CommandGroup(after: .toolbar) {
+            Menu(L10n.tr("appearance")) {
+                Picker(L10n.tr("appearance"), selection: $appearanceManager.currentAppearance) {
+                    ForEach(AppAppearance.allCases) { appearance in
+                        Label(appearance.localizedTitle, systemImage: appearance.iconName)
+                            .tag(appearance)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+
+            Button(L10n.tr("toggle_activity_logs")) {
+                NotificationCenter.default.post(name: .toggleLogPanelRequested, object: nil)
+            }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
+
+            Divider()
+
             Button(L10n.tr("refresh")) {
                 NotificationCenter.default.post(name: .configurationDataDidChange, object: nil)
             }
             .keyboardShortcut("r", modifiers: .command)
         }
 
-        CommandGroup(replacing: .appInfo) {
-            Button(L10n.tr("about")) {
-                NSApp.activate(ignoringOtherApps: true)
-                NotificationCenter.default.post(name: .aboutRequested, object: nil)
+        CommandMenu(L10n.tr("connection_menu")) {
+            Button(L10n.tr("new_connection")) {
+                openMainWindowAndPost(.newConnectionRequested)
             }
 
             Divider()
 
-            Button(L10n.tr("settings")) {
-                NSApp.activate(ignoringOtherApps: true)
-                NotificationCenter.default.post(name: .settingsRequested, object: nil)
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            if connectionActions?.isConnected == true {
+                Button(L10n.tr("disconnect")) {
+                    connectionActions?.onDisconnect()
+                }
+                .disabled(connectionActions?.selectedConnection == nil)
+            } else {
+                Button(L10n.tr("connect")) {
+                    connectionActions?.onConnect()
+                }
+                .disabled(connectionActions?.selectedConnection == nil)
             }
-            .keyboardShortcut(",", modifiers: .command)
+
+            Button(L10n.tr("open_file_browser")) {
+                connectionActions?.onOpenFileBrowser()
+            }
+            .disabled(connectionActions?.selectedConnection == nil)
+
+            Button(L10n.tr("open_terminal")) {
+                connectionActions?.onOpenTerminal()
+            }
+            .disabled(connectionActions?.selectedConnection?.connectionType.supportsTerminal != true)
+
+            Button(L10n.tr("open_in_macos_terminal")) {
+                connectionActions?.onOpenMacOSTerminal()
+            }
+            .disabled(connectionActions?.selectedConnection?.connectionType.supportsTerminal != true)
+
+            Divider()
+
+            Button(L10n.tr("edit")) {
+                connectionActions?.onEdit()
+            }
+            .disabled(connectionActions?.selectedConnection == nil)
+
+            Button(L10n.tr("duplicate")) {
+                connectionActions?.onDuplicate()
+            }
+            .disabled(connectionActions?.selectedConnection == nil)
+
+            Divider()
+
+            Button(L10n.tr("delete")) {
+                connectionActions?.onDelete()
+            }
+            .disabled(connectionActions?.selectedConnection == nil)
         }
 
         CommandGroup(replacing: .help) {
             Button(L10n.tr("donate")) {
-                NSApp.activate(ignoringOtherApps: true)
-                NotificationCenter.default.post(name: .donateRequested, object: nil)
+                ensureRegularActivation()
+                openWindow(id: WindowID.donate)
             }
 
-            Button(L10n.tr("repository")) {
+            Divider()
+
+            Button(L10n.tr("github_repository")) {
                 if let url = URL(string: "https://github.com/devduong/macSSH") {
                     NSWorkspace.shared.open(url)
                 }
@@ -327,6 +438,28 @@ struct MacSSHApp: App {
                 if let url = URL(string: "https://github.com/devduong/macSSH/issues") {
                     NSWorkspace.shared.open(url)
                 }
+            }
+        }
+    }
+
+    private func ensureRegularActivation() {
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func openMainWindowAndPost(_ notificationName: Notification.Name) {
+        ensureRegularActivation()
+        let hasVisibleMain = NSApp.windows.contains {
+            $0.isVisible && (($0.identifier?.rawValue.contains(WindowID.main) == true) || $0.title == "macSSH")
+        }
+        if hasVisibleMain {
+            NotificationCenter.default.post(name: notificationName, object: nil)
+        } else {
+            openWindow(id: WindowID.main)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NotificationCenter.default.post(name: notificationName, object: nil)
             }
         }
     }

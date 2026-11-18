@@ -213,6 +213,20 @@ public enum L10n_FR {
         "no_internet": "Pas d'Internet",
         "reconnecting": "Reconnexion…",
         "reconnect_success": "Reconnecté avec succès",
-        "reconnect_failed": "Échec de la reconnexion"
+        "reconnect_failed": "Échec de la reconnexion",
+
+        // MARK: - Appearance, Toolbar & Menus
+        "new_connection": "Nouvelle connexion",
+        "connection_menu": "Connexion",
+        "toggle_activity_logs": "Afficher/Masquer le journal d'activité",
+        "search_connections": "Rechercher des connexions",
+        "appearance": "Apparence",
+        "appearance_desc": "Choisissez l'apparence claire, sombre ou système pour macSSH.",
+        "appearance_system": "Système",
+        "appearance_light": "Clair",
+        "appearance_dark": "Sombre",
+        "switch_to_light": "Passer en mode clair",
+        "switch_to_dark": "Passer en mode sombre",
+        "github_repository": "Dépôt GitHub"
     ]
 }

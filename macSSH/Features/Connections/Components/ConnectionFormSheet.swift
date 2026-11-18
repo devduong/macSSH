@@ -47,7 +47,8 @@ struct ConnectionFormSheet: View {
     @State private var savePassword: Bool = false
     @State private var password: String = ""
     @State private var description: String = ""
-    @State private var iconName: String = "server.rack"
+    @State private var iconName: String = ConnectionType.sftp.iconName
+    @State private var hasCustomIcon: Bool = false
     @State private var selectedFolderId: UUID?
     @State private var tags: [String] = []
     @State private var newTag: String = ""
@@ -114,9 +115,9 @@ struct ConnectionFormSheet: View {
                         if port.trimmed.isEmpty || defaultPorts.contains(port.trimmed) || port.trimmed == String(oldType.defaultPort) {
                             port = String(newType.defaultPort)
                         }
-                        let defaultIcons = Set(ConnectionType.allCases.map { $0.iconName })
-                        if defaultIcons.contains(iconName) {
+                        if !hasCustomIcon || ConnectionType.allDefaultIcons.contains(iconName) {
                             iconName = newType.iconName
+                            hasCustomIcon = false
                         }
                         if !newType.supportsPrivateKey {
                             authMethod = .password
@@ -125,6 +126,19 @@ struct ConnectionFormSheet: View {
                             socksProxyEnabled = false
                         }
                     }
+
+                    IconPickerRow(
+                        selectedIcon: $iconName,
+                        accentColor: connectionType.accentColor,
+                        defaultIcon: connectionType.iconName,
+                        onIconManuallyPicked: { picked in
+                            hasCustomIcon = picked != connectionType.iconName
+                        },
+                        onResetToDefault: {
+                            iconName = connectionType.iconName
+                            hasCustomIcon = false
+                        }
+                    )
 
                     TextField(loc("Name", "Tên kết nối"), text: $name)
                     TextField(hostPlaceholder, text: $host)
@@ -224,8 +238,6 @@ struct ConnectionFormSheet: View {
                 Section(loc("Optional", "Tùy chọn bổ sung")) {
                     TextField(loc("Description / Notes", "Mô tả / Ghi chú"), text: $description, axis: .vertical)
                         .lineLimit(2...4)
-
-                    IconPickerRow(selectedIcon: $iconName)
                 }
             }
             .formStyle(.grouped)
@@ -286,6 +298,7 @@ struct ConnectionFormSheet: View {
             savePassword = connection.savePassword
             description = connection.description ?? ""
             iconName = connection.iconName
+            hasCustomIcon = !ConnectionType.allDefaultIcons.contains(connection.iconName)
             selectedFolderId = connection.folderId
             tags = connection.tags
             socksProxyEnabled = connection.socksProxyEnabled
@@ -394,21 +407,33 @@ struct ConnectionFormSheet: View {
 // MARK: - Icon Picker Row
 struct IconPickerRow: View {
     @Binding var selectedIcon: String
+    var accentColor: Color = .blue
+    var defaultIcon: String? = nil
+    var onIconManuallyPicked: ((String) -> Void)? = nil
+    var onResetToDefault: (() -> Void)? = nil
     @State private var showingIconSelector = false
 
     var body: some View {
         HStack {
-            Text("Icon")
+            Text(L10n.tr("icon"))
             Spacer()
+            if let defaultIcon, selectedIcon != defaultIcon, let onResetToDefault {
+                Button(loc("Auto", "Tự động")) {
+                    onResetToDefault()
+                }
+                .buttonStyle(.borderless)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            }
             Button {
                 showingIconSelector.toggle()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: selectedIcon)
                         .font(.system(size: 16))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(accentColor)
                         .frame(width: 28, height: 28)
-                        .background(.blue.opacity(0.1))
+                        .background(accentColor.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     Text(selectedIcon)
                         .font(.system(.body, design: .monospaced))
@@ -424,7 +449,13 @@ struct IconPickerRow: View {
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showingIconSelector, arrowEdge: .trailing) {
-                IconSelectorView(selectedIcon: $selectedIcon)
+                IconSelectorView(selectedIcon: Binding(
+                    get: { selectedIcon },
+                    set: { newValue in
+                        selectedIcon = newValue
+                        onIconManuallyPicked?(newValue)
+                    }
+                ))
             }
         }
     }

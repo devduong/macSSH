@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum ConnectionType: String, Codable, Sendable, CaseIterable {
     case sftp
@@ -48,13 +49,38 @@ enum ConnectionType: String, Codable, Sendable, CaseIterable {
     var iconName: String {
         switch self {
         case .sftp:
-            return "server.rack"
+            return "apple.terminal"
         case .ftp:
-            return "network"
+            return "arrow.up.arrow.down.circle"
         case .smb:
             return "externaldrive.connected.to.line.below"
         }
     }
+
+    var accentColor: Color {
+        switch self {
+        case .sftp:
+            return .blue
+        case .ftp:
+            return .teal
+        case .smb:
+            return .indigo
+        }
+    }
+
+    /// All current and legacy default protocol icons so editing/switching protocols auto-updates cleanly
+    static let allDefaultIcons: Set<String> = [
+        "apple.terminal",
+        "apple.terminal.fill",
+        "terminal",
+        "terminal.fill",
+        "server.rack",
+        "network",
+        "arrow.up.arrow.down.circle",
+        "arrow.up.arrow.down.circle.fill",
+        "externaldrive.connected.to.line.below",
+        "externaldrive.connected.to.line.below.fill"
+    ]
 
     var description: String {
         switch self {

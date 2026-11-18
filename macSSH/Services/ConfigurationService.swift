@@ -18,6 +18,8 @@ extension Notification.Name {
     static let settingsRequested = Notification.Name("settingsRequested")
     static let donateRequested = Notification.Name("donateRequested")
     static let aboutRequested = Notification.Name("aboutRequested")
+    static let toggleLogPanelRequested = Notification.Name("toggleLogPanelRequested")
+    static let focusConnectionSearch = Notification.Name("focusConnectionSearch")
 }
 
 struct AppSettingsData: Codable, Sendable {

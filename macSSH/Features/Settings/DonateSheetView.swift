@@ -10,6 +10,7 @@ import CoreImage.CIFilterBuiltins
 
 struct DonateSheetView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var l10n = LocalizationManager.shared
     @State private var copied = false
 
     private let cryptoAddress = "0xe26c0DC422EF744816Ca3B2d210e6214fdC4e18E"

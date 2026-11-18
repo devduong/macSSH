@@ -213,6 +213,20 @@ public enum L10n_RU {
         "no_internet": "Нет Интернета",
         "reconnecting": "Переподключение…",
         "reconnect_success": "Успешно переподключено",
-        "reconnect_failed": "Ошибка переподключения"
+        "reconnect_failed": "Ошибка переподключения",
+
+        // MARK: - Appearance, Toolbar & Menus
+        "new_connection": "Новое подключение",
+        "connection_menu": "Подключение",
+        "toggle_activity_logs": "Показать/скрыть журнал активности",
+        "search_connections": "Поиск подключений",
+        "appearance": "Оформление",
+        "appearance_desc": "Выберите светлую, тёмную или системную тему для macSSH.",
+        "appearance_system": "Системная",
+        "appearance_light": "Светлая",
+        "appearance_dark": "Тёмная",
+        "switch_to_light": "Переключиться на светлую тему",
+        "switch_to_dark": "Переключиться на тёмную тему",
+        "github_repository": "Репозиторий GitHub"
     ]
 }

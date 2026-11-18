@@ -29,6 +29,7 @@ struct SettingsView: View {
     @AppStorage("autoCheckUpdates") private var autoCheckUpdates: Bool = true
 
     @ObservedObject private var l10n = LocalizationManager.shared
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -102,6 +103,20 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var generalSection: some View {
+        Section(L10n.tr("appearance")) {
+            Picker(L10n.tr("appearance"), selection: $appearanceManager.currentAppearance) {
+                ForEach(AppAppearance.allCases) { appearance in
+                    Text(appearance.localizedTitle)
+                        .tag(appearance)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(L10n.tr("appearance_desc"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
         Section(L10n.tr("language")) {
             Picker(L10n.tr("language"), selection: $selectedLanguage) {
                 ForEach(AppLanguage.allCases) { lang in

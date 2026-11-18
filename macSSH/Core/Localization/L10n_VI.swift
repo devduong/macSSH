@@ -213,6 +213,20 @@ public enum L10n_VI {
         "no_internet": "Mất kết nối",
         "reconnecting": "Đang kết nối lại…",
         "reconnect_success": "Đã kết nối lại thành công",
-        "reconnect_failed": "Kết nối lại thất bại"
+        "reconnect_failed": "Kết nối lại thất bại",
+
+        // MARK: - Appearance, Toolbar & Menus
+        "new_connection": "Kết nối mới",
+        "connection_menu": "Kết nối",
+        "toggle_activity_logs": "Bật/Tắt nhật ký hoạt động",
+        "search_connections": "Tìm kiếm kết nối",
+        "appearance": "Giao diện",
+        "appearance_desc": "Chọn giao diện Sáng, Tối hoặc theo hệ thống cho macSSH.",
+        "appearance_system": "Theo hệ thống",
+        "appearance_light": "Sáng",
+        "appearance_dark": "Tối",
+        "switch_to_light": "Chuyển sang giao diện Sáng",
+        "switch_to_dark": "Chuyển sang giao diện Tối",
+        "github_repository": "Mã nguồn GitHub"
     ]
 }

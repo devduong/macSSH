@@ -213,6 +213,20 @@ public enum L10n_ZH_Hans {
         "no_internet": "无网络",
         "reconnecting": "正在重连…",
         "reconnect_success": "重连成功",
-        "reconnect_failed": "重连失败"
+        "reconnect_failed": "重连失败",
+
+        // MARK: - Appearance, Toolbar & Menus
+        "new_connection": "新建连接",
+        "connection_menu": "连接",
+        "toggle_activity_logs": "切换活动日志",
+        "search_connections": "搜索连接",
+        "appearance": "外观",
+        "appearance_desc": "为 macSSH 选择浅色、深色或跟随系统外观。",
+        "appearance_system": "跟随系统",
+        "appearance_light": "浅色",
+        "appearance_dark": "深色",
+        "switch_to_light": "切换至浅色模式",
+        "switch_to_dark": "切换至深色模式",
+        "github_repository": "GitHub 仓库"
     ]
 }

@@ -92,6 +92,7 @@ struct MainLogBottomPanel: View {
         }
         .frame(height: panelHeight)
         .background(Color(NSColor.textBackgroundColor))
+        .excludeFromEmptyAreaContextMenu()
     }
 
     // MARK: - Drag Resize Handle

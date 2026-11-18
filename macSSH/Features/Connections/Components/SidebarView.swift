@@ -22,85 +22,95 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             // Folders and connections list
             List(selection: $viewModel.selectedSidebarItem) {
-                // All Connections
-                NavigationLink(value: SidebarSelection.allConnections) {
-                    Label {
-                        Text(loc("All Connections", "Tất cả kết nối"))
-                    } icon: {
-                        Image(systemName: "server.rack")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
-                .onDrop(of: [UTType.connection], isTargeted: nil) { providers in
-                    for provider in providers {
-                        provider.loadDataRepresentation(forTypeIdentifier: UTType.connection.identifier) { data, _ in
-                            guard let data = data else { return }
-                            let decoder = JSONDecoder()
-                            decoder.dateDecodingStrategy = .iso8601
-                            guard let connection = try? decoder.decode(Connection.self, from: data) else { return }
-                            Task { @MainActor in
-                                await viewModel.moveConnection(connection, to: nil)
-                            }
-                        }
-                    }
-                    return true
-                }
-
-                // Folders Section
-                Section(loc("Folders", "Thư mục")) {
-                    ForEach(viewModel.folders) { folder in
-                        NavigationLink(value: SidebarSelection.folder(folder.id)) {
-                            FolderRowView(
-                                folder: folder,
-                                connectionCount: viewModel.connectionCount(for: folder.id)
-                            )
-                        }
-                        .onDrop(of: [UTType.connection], isTargeted: nil) { providers in
-                            for provider in providers {
-                                provider.loadDataRepresentation(forTypeIdentifier: UTType.connection.identifier) { data, _ in
-                                    guard let data = data else { return }
-                                    let decoder = JSONDecoder()
-                                    decoder.dateDecodingStrategy = .iso8601
-                                    guard let connection = try? decoder.decode(Connection.self, from: data) else { return }
-                                    Task { @MainActor in
-                                        await viewModel.moveConnection(connection, to: folder)
-                                    }
-                                }
-                            }
-                            return true
-                        }
-                        .contextMenu {
-                            Button {
-                                viewModel.requestNewConnection(inFolder: folder.id)
-                            } label: {
-                                Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle")
-                            }
-
-                            Divider()
-
-                            Button {
-                                folderToRename = folder
-                                renameText = folder.name
-                                isShowingRenameAlert = true
-                            } label: {
-                                Label(loc("Rename", "Đổi tên"), systemImage: "pencil")
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                viewModel.confirmDeleteFolder(folder)
-                            } label: {
-                                Label(loc("Delete", "Xóa"), systemImage: "trash")
-                            }
-                        }
-                    }
-                    .onMove { source, destination in
-                        viewModel.reorderFolders(from: source, to: destination)
-                    }
+            // All Connections
+            NavigationLink(value: SidebarSelection.allConnections) {
+                Label {
+                    Text(loc("All Connections", "Tất cả kết nối"))
+                } icon: {
+                    Image(systemName: "server.rack")
+                        .foregroundStyle(Color.accentColor)
                 }
             }
-            .listStyle(.sidebar)
+            .onDrop(of: [UTType.connection], isTargeted: nil) { providers in
+                for provider in providers {
+                    provider.loadDataRepresentation(forTypeIdentifier: UTType.connection.identifier) { data, _ in
+                        guard let data = data else { return }
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        guard let connection = try? decoder.decode(Connection.self, from: data) else { return }
+                        Task { @MainActor in
+                            await viewModel.moveConnection(connection, to: nil)
+                        }
+                    }
+                }
+                return true
+            }
+
+            // Folders Section
+            Section(loc("Folders", "Thư mục")) {
+                ForEach(viewModel.folders) { folder in
+                    NavigationLink(value: SidebarSelection.folder(folder.id)) {
+                        FolderRowView(
+                            folder: folder,
+                            connectionCount: viewModel.connectionCount(for: folder.id)
+                        )
+                    }
+                    .onDrop(of: [UTType.connection], isTargeted: nil) { providers in
+                        for provider in providers {
+                            provider.loadDataRepresentation(forTypeIdentifier: UTType.connection.identifier) { data, _ in
+                                guard let data = data else { return }
+                                let decoder = JSONDecoder()
+                                decoder.dateDecodingStrategy = .iso8601
+                                guard let connection = try? decoder.decode(Connection.self, from: data) else { return }
+                                Task { @MainActor in
+                                    await viewModel.moveConnection(connection, to: folder)
+                                }
+                            }
+                        }
+                        return true
+                    }
+                    .contextMenu {
+                        Button {
+                            viewModel.requestNewConnection(inFolder: folder.id)
+                        } label: {
+                            Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle")
+                        }
+
+                        Divider()
+
+                        Button {
+                            folderToRename = folder
+                            renameText = folder.name
+                            isShowingRenameAlert = true
+                        } label: {
+                            Label(loc("Rename", "Đổi tên"), systemImage: "pencil")
+                        }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            viewModel.confirmDeleteFolder(folder)
+                        } label: {
+                            Label(loc("Delete", "Xóa"), systemImage: "trash")
+                        }
+                    }
+                }
+                .onMove { source, destination in
+                    viewModel.reorderFolders(from: source, to: destination)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .emptyAreaContextMenu {
+            [
+                EmptyAreaContextMenuItem(
+                    title: L10n.tr("new_folder"),
+                    systemImage: "folder.badge.plus"
+                ) {
+                    viewModel.isShowingNewFolderSheet = true
+                }
+            ]
+        }
 
             Divider()
 
@@ -115,49 +125,6 @@ struct SidebarView: View {
                     Label(loc("New Folder", "Thư mục mới"), systemImage: "folder.badge.plus")
                 }
                 .help(loc("New Folder", "Thư mục mới"))
-
-                Menu {
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.requestNewConfiguration() }
-                    } label: {
-                        Label(loc("New Configuration", "Tạo file cấu hình mới"), systemImage: "doc.badge.plus")
-                    }
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.loadConfiguration() }
-                    } label: {
-                        Label(loc("Open Configuration…", "Mở file cấu hình…"), systemImage: "folder")
-                    }
-
-                    Button {
-                        Task { try? await ConfigurationService.shared.save() }
-                    } label: {
-                        Label(loc("Save Configuration", "Lưu cấu hình"), systemImage: "tray.and.arrow.down")
-                    }
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.saveAs() }
-                    } label: {
-                        Label(loc("Save Configuration As…", "Lưu cấu hình thành…"), systemImage: "folder.badge.plus")
-                    }
-
-                    Divider()
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.exportSettings() }
-                    } label: {
-                        Label(loc("Export Settings to JSON…", "Xuất cài đặt ra JSON…"), systemImage: "square.and.arrow.up")
-                    }
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.importSettings(replaceExisting: false) }
-                    } label: {
-                        Label(loc("Import Settings from JSON…", "Nhập cài đặt từ JSON…"), systemImage: "square.and.arrow.down")
-                    }
-                } label: {
-                    Label(loc("Config File", "Tệp cấu hình"), systemImage: "doc.badge.gearshape")
-                }
-                .help(loc("Configuration & Backup", "Cấu hình & Sao lưu"))
             }
         }
         .alert(loc("Rename Folder", "Đổi tên thư mục"), isPresented: $isShowingRenameAlert) {
@@ -220,6 +187,7 @@ struct SidebarView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .excludeFromEmptyAreaContextMenu()
     }
 
     private func footerButton(

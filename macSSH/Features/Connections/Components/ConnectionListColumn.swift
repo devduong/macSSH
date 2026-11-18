@@ -12,6 +12,18 @@ struct ConnectionListColumn: View {
     @Bindable var viewModel: ConnectionListViewModel
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
     @ObservedObject private var windowManager = WindowManager.shared
+    @ObservedObject private var l10n = LocalizationManager.shared
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
+    @ObservedObject private var configService = ConfigurationService.shared
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var isDarkMode: Bool {
+        switch appearanceManager.currentAppearance {
+        case .dark: return true
+        case .light: return false
+        case .system: return colorScheme == .dark
+        }
+    }
 
     var body: some View {
         Group {
@@ -20,7 +32,7 @@ struct ConnectionListColumn: View {
                 LoadingView(message: "Loading connections...")
 
             case .success:
-                // Always show connectionList so .searchable toolbar stays attached.
+                // Always show connectionList so UI stays stable across empty searches.
                 // Use safeAreaInset to avoid clipping/overlapping the top navigation title.
                 connectionList
                     .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -44,67 +56,66 @@ struct ConnectionListColumn: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(listTitle)
         .navigationSubtitle("\(viewModel.filteredConnections.count) connections")
+        .background {
+            // Local Cmd+F shortcut to focus the toolbar search field without conflicting with FileEditorView
+            Button("") {
+                NotificationCenter.default.post(name: .focusConnectionSearch, object: nil)
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.requestNewConfiguration() }
-                    } label: {
-                        Label("New Configuration", systemImage: "doc.badge.plus")
-                    }
-
-                    Button {
-                        Task { try? await ConfigurationService.shared.save() }
-                    } label: {
-                        Label("Save Configuration", systemImage: "tray.and.arrow.down")
-                    }
-                    .keyboardShortcut("s", modifiers: .command)
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.saveAs() }
-                    } label: {
-                        Label("Save Configuration As…", systemImage: "folder.badge.plus")
-                    }
-                    .keyboardShortcut("s", modifiers: [.command, .shift])
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.loadConfiguration() }
-                    } label: {
-                        Label("Open Configuration…", systemImage: "folder")
-                    }
-                    .keyboardShortcut("o", modifiers: .command)
-
-                    Divider()
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.exportSettings() }
-                    } label: {
-                        Label("Export Settings to JSON…", systemImage: "square.and.arrow.up")
-                    }
-
-                    Button {
-                        Task { _ = try? await ConfigurationService.shared.importSettings(replaceExisting: false) }
-                    } label: {
-                        Label("Import Settings from JSON…", systemImage: "square.and.arrow.down")
-                    }
-                } label: {
-                    Label("Configuration", systemImage: "gearshape")
-                }
-                .help("Save, Open, Import, or Export Configuration")
-
                 Button {
                     viewModel.requestNewConnection()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.system(size: 12, weight: .semibold))
-                        Text("New")
+                        Text(L10n.tr("new_connection"))
                             .font(.system(size: 12, weight: .medium))
                     }
+                    .fixedSize()
                     .padding(.horizontal, 4)
                     .contentShape(Rectangle())
                 }
-                .help(loc("New Connection", "Thêm kết nối mới"))
+                .help(L10n.tr("new_connection"))
+
+                Button {
+                    Task { try? await ConfigurationService.shared.save() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "tray.and.arrow.down")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(L10n.tr("save_configuration"))
+                            .font(.system(size: 12, weight: .medium))
+                        if configService.hasUnsavedChanges {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                    .fixedSize()
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                }
+                .help(L10n.tr("save_configuration"))
+
+                Button {
+                    Task { _ = try? await ConfigurationService.shared.requestNewConfiguration() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(L10n.tr("new_configuration"))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .fixedSize()
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                }
+                .help(L10n.tr("new_configuration"))
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -118,12 +129,27 @@ struct ConnectionListColumn: View {
                         Text(loc("Logs", "Nhật ký"))
                             .font(.system(size: 12, weight: .medium))
                     }
+                    .fixedSize()
                     .padding(.horizontal, 2)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(loc("Toggle Activity Log (Cmd+Shift+L)", "Bật/Tắt khung nhật ký (Cmd+Shift+L)"))
-                .keyboardShortcut("l", modifiers: [.command, .shift])
+
+                ToolbarSearchField(
+                    text: $viewModel.searchText,
+                    prompt: L10n.tr("search_connections")
+                )
+                .frame(width: 175)
+
+                Button {
+                    appearanceManager.toggleLightDark(currentlyDark: isDarkMode)
+                } label: {
+                    Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(isDarkMode ? Color.yellow : Color.orange)
+                }
+                .help(isDarkMode ? L10n.tr("switch_to_light") : L10n.tr("switch_to_dark"))
             }
         }
     }
@@ -323,28 +349,22 @@ struct ConnectionListColumn: View {
             .tag(connection.id)
         }
         .listStyle(.inset)
-        .searchable(text: $viewModel.searchText, prompt: "Search connections")
         .overlay {
             // Empty state overlay — shown when list has no results
             if viewModel.filteredConnections.isEmpty {
                 emptyStateView
             }
         }
-        .background(
-            Color.clear
-                .contextMenu {
-                    Button {
-                        viewModel.requestNewConnection()
-                    } label: {
-                        Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle.fill")
-                    }
-                    Button {
-                        viewModel.isShowingNewFolderSheet = true
-                    } label: {
-                        Label(loc("New Folder", "Thư mục mới"), systemImage: "folder.badge.plus")
-                    }
+        .emptyAreaContextMenu {
+            [
+                EmptyAreaContextMenuItem(
+                    title: L10n.tr("new_connection"),
+                    systemImage: "plus.circle.fill"
+                ) {
+                    viewModel.requestNewConnection()
                 }
-        )
+            ]
+        }
         .onKeyPress(.return) {
             if let connection = viewModel.selectedConnection {
                 if viewModel.activeDetailConnectionId == connection.id {

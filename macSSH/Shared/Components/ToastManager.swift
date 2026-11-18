@@ -149,6 +149,7 @@ public struct ToastBannerView: View {
         )
         .padding(.top, 12)
         .padding(.horizontal, 16)
+        .excludeFromEmptyAreaContextMenu()
     }
 }
 

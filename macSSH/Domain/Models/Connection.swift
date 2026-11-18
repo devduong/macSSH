@@ -51,7 +51,7 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         savePassword: Bool = false,
         description: String? = nil,
         tags: [String] = [],
-        iconName: String = "server.rack",
+        iconName: String? = nil,
         folderId: UUID? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
@@ -70,7 +70,7 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         self.savePassword = savePassword
         self.description = description
         self.tags = tags
-        self.iconName = iconName
+        self.iconName = iconName ?? connectionType.iconName
         self.folderId = folderId
         self.createdAt = createdAt
         self.updatedAt = updatedAt

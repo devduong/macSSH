@@ -30,7 +30,7 @@ struct ConnectionRowView: View {
     private var iconColor: Color {
         if isConnecting { return .orange }
         if isInternetDown { return .red }
-        return isActive ? .green : .blue
+        return isActive ? .green : connection.connectionType.accentColor
     }
 
     private var protocolBadgeColor: Color {

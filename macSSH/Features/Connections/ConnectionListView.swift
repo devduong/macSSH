@@ -7,8 +7,33 @@
 
 import SwiftUI
 
+struct ConnectionMenuActions {
+    let selectedConnection: Connection?
+    let isConnected: Bool
+    let onConnect: () -> Void
+    let onDisconnect: () -> Void
+    let onOpenFileBrowser: () -> Void
+    let onOpenTerminal: () -> Void
+    let onOpenMacOSTerminal: () -> Void
+    let onEdit: () -> Void
+    let onDuplicate: () -> Void
+    let onDelete: () -> Void
+}
+
+private struct ConnectionMenuActionsKey: FocusedValueKey {
+    typealias Value = ConnectionMenuActions
+}
+
+extension FocusedValues {
+    var connectionMenuActions: ConnectionMenuActions? {
+        get { self[ConnectionMenuActionsKey.self] }
+        set { self[ConnectionMenuActionsKey.self] = newValue }
+    }
+}
+
 struct ConnectionListView: View {
     @Bindable var viewModel: ConnectionListViewModel
+    @ObservedObject private var sessionManager = ConnectionSessionManager.shared
     @Environment(\.openWindow) private var openWindow
     @State private var newFolderName = ""
     @State private var isShowingAboutSheet = false
@@ -66,6 +91,7 @@ struct ConnectionListView: View {
             ConnectionListColumn(viewModel: viewModel)
         }
         .navigationTitle("")
+        .frame(minWidth: WindowSize.minMain.width, minHeight: WindowSize.minMain.height)
         .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         .onChange(of: viewModel.selectedSidebarItem) {
             viewModel.selectedConnectionId = nil
@@ -85,6 +111,12 @@ struct ConnectionListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .newFolderRequested)) { _ in
             viewModel.isShowingNewFolderSheet = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleLogPanelRequested)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.isShowingLogPanel.toggle()
+            }
+        }
+        .focusedSceneValue(\.connectionMenuActions, currentConnectionMenuActions)
         .onReceive(NotificationCenter.default.publisher(for: .settingsRequested)) { _ in
             isShowingSettingsSheet = true
         }
@@ -197,6 +229,42 @@ struct ConnectionListView: View {
                 viewModel.clearPendingTerminalWindow()
             }
         }
+    }
+    private var currentConnectionMenuActions: ConnectionMenuActions {
+        let selected = viewModel.selectedConnection
+        let isConnected = selected.map { sessionManager.isConnected($0.id) } ?? false
+        return ConnectionMenuActions(
+            selectedConnection: selected,
+            isConnected: isConnected,
+            onConnect: {
+                if let selected { viewModel.connectToServer(selected) }
+            },
+            onDisconnect: {
+                if let selected { viewModel.disconnectConnection(selected) }
+            },
+            onOpenFileBrowser: {
+                if let selected { viewModel.requestFileBrowser(for: selected) }
+            },
+            onOpenTerminal: {
+                if let selected { viewModel.requestTerminal(for: selected) }
+            },
+            onOpenMacOSTerminal: {
+                if let selected { TerminalLauncherService.openInMacOSTerminal(connection: selected) }
+            },
+            onEdit: {
+                if let selected { viewModel.editConnection(selected) }
+            },
+            onDuplicate: {
+                if let selected {
+                    Task { await viewModel.duplicateConnection(selected) }
+                }
+            },
+            onDelete: {
+                if let selected {
+                    Task { await viewModel.deleteConnection(selected) }
+                }
+            }
+        )
     }
 }
 

@@ -213,6 +213,20 @@ public enum L10n_ZH_Hant {
         "no_internet": "無網路",
         "reconnecting": "正在重連…",
         "reconnect_success": "重連成功",
-        "reconnect_failed": "重連失敗"
+        "reconnect_failed": "重連失敗",
+
+        // MARK: - Appearance, Toolbar & Menus
+        "new_connection": "新增連線",
+        "connection_menu": "連線",
+        "toggle_activity_logs": "切換活動紀錄",
+        "search_connections": "搜尋連線",
+        "appearance": "外觀",
+        "appearance_desc": "為 macSSH 選擇淺色、深色或跟隨系統外觀。",
+        "appearance_system": "跟隨系統",
+        "appearance_light": "淺色",
+        "appearance_dark": "深色",
+        "switch_to_light": "切換至淺色模式",
+        "switch_to_dark": "切換至深色模式",
+        "github_repository": "GitHub 儲存庫"
     ]
 }

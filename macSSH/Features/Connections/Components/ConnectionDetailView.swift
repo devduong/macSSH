@@ -16,7 +16,7 @@ struct ConnectionDetailView: View {
     let onDelete: () -> Void
 
     private var iconColor: Color {
-        .blue
+        connection.connectionType.accentColor
     }
 
     @ObservedObject private var l10n = LocalizationManager.shared

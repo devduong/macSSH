@@ -13,6 +13,7 @@ struct MenuBarContentView: View {
     @ObservedObject private var windowManager = WindowManager.shared
     @ObservedObject private var l10n = LocalizationManager.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @Query(sort: \ConnectionEntity.updatedAt, order: .reverse) private var connectionEntities: [ConnectionEntity]
 
     private var prioritizedConnections: [Connection] {
@@ -41,6 +42,12 @@ struct MenuBarContentView: View {
                 openMainWindow()
             } label: {
                 Label(L10n.tr("open_macssh"), systemImage: "macwindow")
+            }
+
+            Button {
+                openMainWindowAndRequestNewConnection()
+            } label: {
+                Label(L10n.tr("new_connection"), systemImage: "plus.circle")
             }
 
             Divider()
@@ -114,30 +121,23 @@ struct MenuBarContentView: View {
             Divider()
 
             Button {
-                openMainWindow()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NotificationCenter.default.post(name: .settingsRequested, object: nil)
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
+                ensureRegularActivation()
+                openSettings()
             } label: {
                 Label(L10n.tr("settings"), systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: .command)
 
             Button {
-                openMainWindow()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NotificationCenter.default.post(name: .donateRequested, object: nil)
-                }
+                ensureRegularActivation()
+                openWindow(id: WindowID.donate)
             } label: {
                 Label(L10n.tr("donate"), systemImage: "cup.and.saucer.fill")
             }
 
             Button {
-                openMainWindow()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NotificationCenter.default.post(name: .aboutRequested, object: nil)
-                }
+                ensureRegularActivation()
+                openWindow(id: WindowID.about)
             } label: {
                 Label(L10n.tr("about"), systemImage: "info.circle")
             }
@@ -174,19 +174,33 @@ struct MenuBarContentView: View {
 
     private func openMainWindow() {
         ensureRegularActivation()
-        for window in NSApp.windows {
-            if !window.title.contains("Terminal") &&
-               !window.title.contains("Editor") &&
-               !window.title.contains("Info") &&
-               !window.className.contains("NSStatusBar") &&
-               window.canBecomeKey {
-                window.setIsVisible(true)
-                window.deminiaturize(nil)
-                window.makeKeyAndOrderFront(nil)
-                return
-            }
+        if let mainWindow = NSApp.windows.first(where: {
+            ($0.identifier?.rawValue.contains(WindowID.main) == true || $0.title == "macSSH") &&
+            !$0.className.contains("NSStatusBar") &&
+            $0.canBecomeKey
+        }) {
+            mainWindow.setIsVisible(true)
+            mainWindow.deminiaturize(nil)
+            mainWindow.makeKeyAndOrderFront(nil)
+            return
         }
         openWindow(id: WindowID.main)
+    }
+
+    private func openMainWindowAndRequestNewConnection() {
+        ensureRegularActivation()
+        let hasVisibleMain = NSApp.windows.contains {
+            $0.isVisible && (($0.identifier?.rawValue.contains(WindowID.main) == true) || $0.title == "macSSH")
+        }
+        if hasVisibleMain {
+            openMainWindow()
+            NotificationCenter.default.post(name: .newConnectionRequested, object: nil)
+        } else {
+            openWindow(id: WindowID.main)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                NotificationCenter.default.post(name: .newConnectionRequested, object: nil)
+            }
+        }
     }
 
     private func openFileBrowser(for connection: Connection) {

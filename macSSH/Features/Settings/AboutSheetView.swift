@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AboutSheetView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     var body: some View {
         VStack(spacing: 16) {

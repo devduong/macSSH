@@ -263,6 +263,8 @@ enum IconCategory: CaseIterable {
                 "cable.connector.horizontal",
                 "arrow.left.arrow.right",
                 "arrow.up.arrow.down",
+                "arrow.up.arrow.down.circle",
+                "arrow.up.arrow.down.circle.fill",
                 "link",
                 "personalhotspot"
             ]
