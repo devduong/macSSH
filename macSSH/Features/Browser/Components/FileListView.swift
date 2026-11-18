@@ -28,6 +28,8 @@ struct FileListView: View {
                 await viewModel.navigateTo(file.path)
             } else if FileTypeService.isPreviewable(file) {
                 onOpenEditor(file)
+            } else {
+                await viewModel.viewFile(file)
             }
         }
     }

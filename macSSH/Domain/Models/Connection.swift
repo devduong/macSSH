@@ -82,14 +82,17 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
 
     // MARK: - Computed Properties
     var displayHost: String {
-        if port == 22 {
+        if port == connectionType.defaultPort {
             return host
         }
         return "\(host):\(port)"
     }
 
     var connectionString: String {
-        "\(username)@\(displayHost)"
+        if username.isBlank {
+            return displayHost
+        }
+        return "\(username)@\(displayHost)"
     }
 
     var hasDescription: Bool {

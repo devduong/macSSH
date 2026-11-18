@@ -127,6 +127,15 @@ final class FileBrowserViewModel {
     var fileToMove: RemoteFile?
     var moveDestinationPath: String = ""
     var filesToDelete: [RemoteFile] = []
+    var targetNewItemDirectory: String? = nil
+
+    // Built-in File Viewer session (SFTP, FTP, SMB)
+    struct ViewedFileSession: Identifiable {
+        let id = UUID()
+        let file: RemoteFile
+        let localURL: URL
+    }
+    var viewedFileSession: ViewedFileSession? = nil
 
     // Window opening state
     var pendingFileInfoWindowId: String?
@@ -286,8 +295,11 @@ final class FileBrowserViewModel {
     }
 
     func disconnect() async {
-        // Stop all external editing file watchers
+        // Stop all external editing file watchers and clean up viewed file cache
         ExternalEditorService.shared.closeAllSessions()
+        closeFileViewer()
+        let previewRoot = "/tmp/macSSH_View/\(connection.id.uuidString)"
+        try? FileManager.default.removeItem(atPath: previewRoot)
 
         // Cancel all ongoing transfer tasks
         for (_, task) in transferTasks {
@@ -446,8 +458,32 @@ final class FileBrowserViewModel {
 
     // MARK: - File Operations
 
+    func requestNewFolder(inDirectory dirPath: String? = nil) {
+        if let dirPath {
+            targetNewItemDirectory = dirPath
+        } else if selectedRemoteFiles.count == 1, let selected = selectedRemoteFiles.first, selected.isDirectory {
+            targetNewItemDirectory = selected.path
+        } else {
+            targetNewItemDirectory = currentPath
+        }
+        isShowingNewFolderSheet = true
+    }
+
+    func requestNewFile(inDirectory dirPath: String? = nil) {
+        if let dirPath {
+            targetNewItemDirectory = dirPath
+        } else if selectedRemoteFiles.count == 1, let selected = selectedRemoteFiles.first, selected.isDirectory {
+            targetNewItemDirectory = selected.path
+        } else {
+            targetNewItemDirectory = currentPath
+        }
+        isShowingNewFileSheet = true
+    }
+
     func createFolder(name: String) async {
-        let path = currentPath.appendingPathComponent(name)
+        let baseDir = targetNewItemDirectory ?? currentPath
+        let path = baseDir.appendingPathComponent(name)
+        targetNewItemDirectory = nil
 
         do {
             try await fileRepository.createDirectory(at: path)
@@ -463,7 +499,9 @@ final class FileBrowserViewModel {
     }
 
     func createFile(name: String) async {
-        let path = currentPath.appendingPathComponent(name)
+        let baseDir = targetNewItemDirectory ?? currentPath
+        let path = baseDir.appendingPathComponent(name)
+        targetNewItemDirectory = nil
 
         do {
             try await fileRepository.createFile(at: path)
@@ -475,6 +513,37 @@ final class FileBrowserViewModel {
             addLog("Failed to create file '\(name)': \(error.localizedDescription)", level: .error)
             self.error = AppError.from(error)
         }
+    }
+
+    // MARK: - Built-in File Viewer (SFTP, FTP, SMB)
+
+    func viewFile(_ file: RemoteFile) async {
+        guard file.isFile else { return }
+
+        isRemoteLoading = true
+        defer { isRemoteLoading = false }
+
+        let tempDir = URL(fileURLWithPath: "/tmp/macSSH_View/\(connection.id.uuidString)/\(UUID().uuidString)")
+        let localURL = tempDir.appendingPathComponent(file.name)
+
+        do {
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            addLog("Loading file preview: \(file.name) (\(file.displaySize))")
+            try await fileRepository.download(remotePath: file.path, to: localURL)
+            viewedFileSession = ViewedFileSession(file: file, localURL: localURL)
+            addLog("Opened file viewer for: \(file.name)", level: .info)
+        } catch {
+            logError("Failed to load file for viewing: \(error)", category: .sftp)
+            addLog("Failed to view '\(file.name)': \(error.localizedDescription)", level: .error)
+            self.error = AppError.from(error)
+        }
+    }
+
+    func closeFileViewer() {
+        if let session = viewedFileSession {
+            try? FileManager.default.removeItem(at: session.localURL.deletingLastPathComponent())
+        }
+        viewedFileSession = nil
     }
 
     func renameFile(_ file: RemoteFile, to newName: String) async {

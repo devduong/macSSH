@@ -33,6 +33,14 @@ struct ConnectionRowView: View {
         return isActive ? .green : .blue
     }
 
+    private var protocolBadgeColor: Color {
+        switch connection.connectionType {
+        case .sftp: return .secondary
+        case .ftp: return .teal
+        case .smb: return .indigo
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
             HStack(spacing: 12) {
@@ -72,7 +80,7 @@ struct ConnectionRowView: View {
 
                         // Action buttons (always visible)
                         HStack(spacing: 4) {
-                            // File Browser button
+                            // File Browser button (available for SFTP, FTP, SMB)
                             Button(action: { onFileBrowser?() }) {
                                 Image(systemName: "folder")
                                     .font(.system(size: 11, weight: .medium))
@@ -83,16 +91,18 @@ struct ConnectionRowView: View {
                             .buttonStyle(.plain)
                             .help(loc("Open File Browser", "Mở trình duyệt tệp"))
 
-                            // Terminal button
-                            Button(action: { onTerminal?() }) {
-                                Image(systemName: "terminal")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 24, height: 20)
-                                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
+                            // Terminal button (SFTP/SSH only)
+                            if connection.connectionType.supportsTerminal {
+                                Button(action: { onTerminal?() }) {
+                                    Image(systemName: "terminal")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 24, height: 20)
+                                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
+                                }
+                                .buttonStyle(.plain)
+                                .help(loc("Open Terminal", "Mở Terminal"))
                             }
-                            .buttonStyle(.plain)
-                            .help(loc("Open Terminal", "Mở Terminal"))
                         }
 
                         // Password saved badge (shown when savePassword is true or on hover)
@@ -125,8 +135,8 @@ struct ConnectionRowView: View {
                             .transition(.opacity)
                         }
 
-                        // Proxy quick-toggle (shown on hover)
-                        if isHovered || connection.socksProxyEnabled {
+                        // Proxy quick-toggle (shown on hover for SFTP connections)
+                        if connection.connectionType.supportsSocksProxy && (isHovered || connection.socksProxyEnabled) {
                             Button(action: { onProxyToggle?() }) {
                                 HStack(spacing: 2) {
                                     Image(systemName: connection.socksProxyEnabled ? "wifi" : "wifi.slash")
@@ -184,9 +194,9 @@ struct ConnectionRowView: View {
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Color.green.opacity(0.12), in: Capsule())
                         } else {
-                            Text(connection.connectionType.displayName)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.secondary)
+                            Text(connection.connectionType.badgeName)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(protocolBadgeColor)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(.quaternary, in: Capsule())
                         }

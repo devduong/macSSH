@@ -54,18 +54,23 @@ struct FileBrowserView: View {
             ToolbarItem(id: "newItem", placement: .primaryAction) {
                 Menu {
                     Button {
-                        viewModel.isShowingNewFolderSheet = true
+                        viewModel.requestNewFolder()
                     } label: {
                         Label("New Folder", systemImage: "folder.badge.plus")
                     }
 
                     Button {
-                        viewModel.isShowingNewFileSheet = true
+                        viewModel.requestNewFile()
                     } label: {
                         Label("New File", systemImage: "doc.badge.plus")
                     }
                 } label: {
-                    Label("New", systemImage: "plus")
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("New")
+                            .font(.system(size: 12, weight: .medium))
+                    }
                 }
                 .help("New File or Folder")
             }
@@ -376,6 +381,7 @@ private struct FileBrowserSheets: ViewModifier {
                     },
                     onCancel: {
                         viewModel.isShowingNewFolderSheet = false
+                        viewModel.targetNewItemDirectory = nil
                     }
                 )
             }
@@ -386,6 +392,20 @@ private struct FileBrowserSheets: ViewModifier {
                     },
                     onCancel: {
                         viewModel.isShowingNewFileSheet = false
+                        viewModel.targetNewItemDirectory = nil
+                    }
+                )
+            }
+            .sheet(item: $viewModel.viewedFileSession) { session in
+                FileViewerSheet(
+                    file: session.file,
+                    localFileURL: session.localURL,
+                    connection: viewModel.connection,
+                    onOpenInEditor: { content in
+                        viewModel.openEditor(for: session.file, content: content)
+                    },
+                    onClose: {
+                        viewModel.closeFileViewer()
                     }
                 )
             }

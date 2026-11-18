@@ -19,8 +19,9 @@ final class ConnectionSessionManager: ObservableObject {
 
     struct ActiveSession {
         let connection: Connection
-        var client: SSHClient
-        let eventLoopGroup: MultiThreadedEventLoopGroup
+        var client: SSHClient?
+        let eventLoopGroup: MultiThreadedEventLoopGroup?
+        var remoteSession: SFTPSessionProtocol?
         var socksTunnel: NativeSocksTunnel?
         let password: String
         let connectedAt: Date
@@ -98,11 +99,12 @@ final class ConnectionSessionManager: ObservableObject {
                 logInfo("[Reconnect] SOCKS5 tunnel stopped for \(connName).", category: .socks5)
             }
 
-            // 2. Close old SSH client
-            logInfo("[Reconnect] Closing stale SSH client for \(connName)...", category: .network)
-            try? await session.client.close()
-            try? await session.eventLoopGroup.shutdownGracefully()
-            logInfo("[Reconnect] Old SSH client closed for \(connName).", category: .network)
+            // 2. Close old SSH client or remote session
+            logInfo("[Reconnect] Closing stale session for \(connName)...", category: .network)
+            await session.remoteSession?.disconnect()
+            try? await session.client?.close()
+            try? await session.eventLoopGroup?.shutdownGracefully()
+            logInfo("[Reconnect] Old session closed for \(connName).", category: .network)
 
             // 3. Remove old session entry
             activeSessions.removeValue(forKey: connectionId)
@@ -242,6 +244,30 @@ final class ConnectionSessionManager: ObservableObject {
             await disconnect(connection.id)
         }
 
+        // Handle non-SSH protocols (FTP, SMB)
+        if connection.connectionType != .sftp {
+            let remoteSession = DependencyContainer.shared.makeRemoteSession(for: connection.connectionType)
+            try await remoteSession.connect(
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                password: password
+            )
+            let session = ActiveSession(
+                connection: connection,
+                client: nil,
+                eventLoopGroup: nil,
+                remoteSession: remoteSession,
+                socksTunnel: nil,
+                password: password,
+                connectedAt: Date()
+            )
+            activeSessions[connection.id] = session
+            WindowManager.shared.markConnectionActive(connection.id)
+            logInfo("\(connection.connectionType.displayName) session established for \(connection.name)", category: .network)
+            return
+        }
+
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let normalizedHost = (connection.host.lowercased() == "localhost") ? "127.0.0.1" : connection.host
 
@@ -325,6 +351,7 @@ final class ConnectionSessionManager: ObservableObject {
             connection: sessionConnection,
             client: sshClient,
             eventLoopGroup: group,
+            remoteSession: nil,
             socksTunnel: socksTunnel,
             password: password,
             connectedAt: Date()
@@ -360,8 +387,9 @@ final class ConnectionSessionManager: ObservableObject {
         }
 
         await session.socksTunnel?.stop()
-        try? await session.client.close()
-        try? await session.eventLoopGroup.shutdownGracefully()
+        await session.remoteSession?.disconnect()
+        try? await session.client?.close()
+        try? await session.eventLoopGroup?.shutdownGracefully()
         WindowManager.shared.markConnectionInactive(connectionId)
         logInfo("Session closed for connection: \(connectionId)", category: .network)
     }

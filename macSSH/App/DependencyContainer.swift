@@ -49,9 +49,20 @@ final class DependencyContainer: ObservableObject {
         WindowManager.shared
     }()
 
-    // MARK: - SFTP Session Factory
+    // MARK: - Remote Session Factory (SFTP, FTP, SMB)
     func makeSFTPSession() -> SFTPSessionProtocol {
         SFTPSession()
+    }
+
+    func makeRemoteSession(for connectionType: ConnectionType) -> SFTPSessionProtocol {
+        switch connectionType {
+        case .sftp:
+            return SFTPSession()
+        case .ftp:
+            return FTPSession()
+        case .smb:
+            return SMBSession()
+        }
     }
 
 

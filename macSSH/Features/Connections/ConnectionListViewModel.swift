@@ -47,6 +47,7 @@ final class ConnectionListViewModel {
     var connectionToEdit: Connection?
     var connectionToConnect: Connection?
     var folderToDelete: Folder?
+    var targetNewConnectionFolderId: UUID?
 
     // Window opening state
     var pendingWindowId: String?
@@ -127,6 +128,21 @@ final class ConnectionListViewModel {
         return folders.first { $0.id == id }
     }
 
+    /// Contextual folder ID for creating a new connection (uses explicit target folder or currently selected sidebar folder)
+    var currentContextFolderId: UUID? {
+        targetNewConnectionFolderId ?? selectedFolder?.id
+    }
+
+    func requestNewConnection(inFolder folderId: UUID? = nil) {
+        targetNewConnectionFolderId = folderId ?? selectedFolder?.id
+        isShowingNewConnectionSheet = true
+    }
+
+    func cancelNewConnection() {
+        isShowingNewConnectionSheet = false
+        targetNewConnectionFolderId = nil
+    }
+
     // MARK: - Data Loading
 
     func loadData() async {
@@ -164,6 +180,7 @@ final class ConnectionListViewModel {
             ConfigurationService.shared.markUnsavedChanges()
             await loadData()
             isShowingNewConnectionSheet = false
+            targetNewConnectionFolderId = nil
             AnalyticsService.trackConnectionCreated(protocol: .init(from: connection.connectionType))
             logInfo("Connection saved: \(connection.name)", category: .database)
         } catch {
@@ -349,11 +366,14 @@ final class ConnectionListViewModel {
 
             connectionToConnect = connection
 
+            let isAnonymousOrGuest = connection.connectionType != .sftp &&
+                ["anonymous", "guest", ""].contains(connection.username.lowercased())
+
             if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
                 logInfo("Found password, establishing persistent session", category: .ui)
                 await performSessionConnect(connection: connection, password: savedPassword)
-            } else if connection.authMethod == .privateKey {
-                logInfo("Private key auth, establishing session without password", category: .ui)
+            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+                logInfo("Key/Anonymous auth, establishing session without password prompt", category: .ui)
                 await performSessionConnect(connection: connection, password: "")
             } else {
                 logInfo("No saved password, showing password prompt", category: .ui)
@@ -381,11 +401,14 @@ final class ConnectionListViewModel {
 
             connectionToConnect = connection
 
+            let isAnonymousOrGuest = connection.connectionType != .sftp &&
+                ["anonymous", "guest", ""].contains(connection.username.lowercased())
+
             if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
                 logInfo("Found password/session, opening file browser immediately", category: .ui)
                 openFileBrowser(for: connection, password: savedPassword)
-            } else if connection.authMethod == .privateKey {
-                logInfo("Private key auth, opening file browser", category: .ui)
+            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+                logInfo("Key/Anonymous auth, opening file browser", category: .ui)
                 openFileBrowser(for: connection, password: "")
             } else {
                 logInfo("No saved password, prompting password for file browser", category: .ui)

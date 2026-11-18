@@ -78,7 +78,7 @@ struct FileBrowserWindow: View {
             socksProxyAllowLAN: data.socksProxyAllowLAN
         )
 
-        let sftpSession = container.makeSFTPSession()
+        let sftpSession = container.makeRemoteSession(for: data.connectionType)
         viewModel = container.makeFileBrowserViewModel(
             connection: connection,
             sftpSession: sftpSession,

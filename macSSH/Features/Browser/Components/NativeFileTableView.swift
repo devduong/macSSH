@@ -414,12 +414,41 @@ struct NativeFileTableView: NSViewRepresentable {
 // MARK: - Context Menu Support
 extension NativeFileTableView.Coordinator {
     func contextMenu(for row: Int) -> NSMenu? {
-        guard row >= 0 && row < files.count else { return nil }
+        // Right-click on empty area: show contextual New Folder / New File in current directory
+        guard row >= 0 && row < files.count else {
+            let emptyMenu = NSMenu()
+            let newFolderItem = NSMenuItem(title: loc("New Folder", "Thư mục mới"), action: #selector(handleNewFolderInCurrent(_:)), keyEquivalent: "")
+            newFolderItem.target = self
+            newFolderItem.image = NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: nil)
+            emptyMenu.addItem(newFolderItem)
+
+            let newFileItem = NSMenuItem(title: loc("New File", "Tệp mới"), action: #selector(handleNewFileInCurrent(_:)), keyEquivalent: "")
+            newFileItem.target = self
+            newFileItem.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
+            emptyMenu.addItem(newFileItem)
+
+            if viewModel?.canPaste == true {
+                emptyMenu.addItem(NSMenuItem.separator())
+                let pasteItem = NSMenuItem(title: L10n.tr("paste"), action: #selector(handlePaste(_:)), keyEquivalent: "")
+                pasteItem.target = self
+                pasteItem.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+                emptyMenu.addItem(pasteItem)
+            }
+            return emptyMenu
+        }
+
         let file = files[row]
 
         let menu = NSMenu()
 
         if file.isFile {
+            // Built-in File Viewer (supports SFTP, FTP, SMB for text, code, images, PDF, media, binary)
+            let viewItem = NSMenuItem(title: loc("View File", "Xem tệp"), action: #selector(handleViewFile(_:)), keyEquivalent: "")
+            viewItem.target = self
+            viewItem.representedObject = file
+            viewItem.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
+            menu.addItem(viewItem)
+
             let openItem = NSMenuItem(title: L10n.tr("open_in_editor"), action: #selector(handleOpenInEditor(_:)), keyEquivalent: "")
             openItem.target = self
             openItem.representedObject = file
@@ -452,6 +481,21 @@ extension NativeFileTableView.Coordinator {
                 editWithItem.submenu = editWithSubmenu
                 menu.addItem(editWithItem)
             }
+
+            menu.addItem(NSMenuItem.separator())
+        } else if file.isDirectory {
+            // Contextual New inside the right-clicked folder
+            let newFolderHere = NSMenuItem(title: loc("New Folder in \"\(file.name)\"", "Tạo thư mục mới trong \"\(file.name)\""), action: #selector(handleNewFolderInDirectory(_:)), keyEquivalent: "")
+            newFolderHere.target = self
+            newFolderHere.representedObject = file
+            newFolderHere.image = NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: nil)
+            menu.addItem(newFolderHere)
+
+            let newFileHere = NSMenuItem(title: loc("New File in \"\(file.name)\"", "Tạo tệp mới trong \"\(file.name)\""), action: #selector(handleNewFileInDirectory(_:)), keyEquivalent: "")
+            newFileHere.target = self
+            newFileHere.representedObject = file
+            newFileHere.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
+            menu.addItem(newFileHere)
 
             menu.addItem(NSMenuItem.separator())
         }
@@ -520,6 +564,31 @@ extension NativeFileTableView.Coordinator {
         menu.addItem(deleteItem)
 
         return menu
+    }
+
+    @objc func handleViewFile(_ sender: NSMenuItem) {
+        guard let file = sender.representedObject as? RemoteFile else { return }
+        Task { @MainActor [weak viewModel] in
+            await viewModel?.viewFile(file)
+        }
+    }
+
+    @objc func handleNewFolderInCurrent(_ sender: NSMenuItem) {
+        viewModel?.requestNewFolder(inDirectory: viewModel?.currentPath)
+    }
+
+    @objc func handleNewFileInCurrent(_ sender: NSMenuItem) {
+        viewModel?.requestNewFile(inDirectory: viewModel?.currentPath)
+    }
+
+    @objc func handleNewFolderInDirectory(_ sender: NSMenuItem) {
+        guard let dir = sender.representedObject as? RemoteFile else { return }
+        viewModel?.requestNewFolder(inDirectory: dir.path)
+    }
+
+    @objc func handleNewFileInDirectory(_ sender: NSMenuItem) {
+        guard let dir = sender.representedObject as? RemoteFile else { return }
+        viewModel?.requestNewFile(inDirectory: dir.path)
     }
 
     @objc func handleOpenInEditor(_ sender: NSMenuItem) {
@@ -621,7 +690,7 @@ class ContextMenuTableView: NSTableView {
             return contextMenuDelegate?.contextMenu(for: row)
         }
 
-        return super.menu(for: event)
+        return contextMenuDelegate?.contextMenu(for: -1)
     }
 }
 

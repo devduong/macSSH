@@ -80,7 +80,7 @@ struct ConnectionListView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newConnectionRequested)) { _ in
-            viewModel.isShowingNewConnectionSheet = true
+            viewModel.requestNewConnection()
         }
         .onReceive(NotificationCenter.default.publisher(for: .newFolderRequested)) { _ in
             viewModel.isShowingNewFolderSheet = true
@@ -107,13 +107,14 @@ struct ConnectionListView: View {
             ConnectionFormSheet(
                 mode: .create,
                 folders: viewModel.folders,
+                defaultFolderId: viewModel.currentContextFolderId,
                 onSave: { connection, password in
                     Task {
                         await viewModel.saveConnection(connection, password: password)
                     }
                 },
                 onCancel: {
-                    viewModel.isShowingNewConnectionSheet = false
+                    viewModel.cancelNewConnection()
                 }
             )
         }

@@ -30,12 +30,14 @@ struct ConnectionFormSheet: View {
     let mode: ConnectionFormMode
     let savedPassword: String?
     let folders: [Folder]
+    let defaultFolderId: UUID?
     let onSave: (Connection, String?) -> Void
     let onCancel: () -> Void
 
     @ObservedObject private var l10n = LocalizationManager.shared
 
     // Form fields
+    @State private var connectionType: ConnectionType = .sftp
     @State private var name: String = ""
     @State private var host: String = ""
     @State private var port: String = "22"
@@ -59,19 +61,33 @@ struct ConnectionFormSheet: View {
         mode: ConnectionFormMode,
         savedPassword: String? = nil,
         folders: [Folder] = [],
+        defaultFolderId: UUID? = nil,
         onSave: @escaping (Connection, String?) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.mode = mode
         self.savedPassword = savedPassword
         self.folders = folders
+        self.defaultFolderId = defaultFolderId
         self.onSave = onSave
         self.onCancel = onCancel
+        _selectedFolderId = State(initialValue: defaultFolderId)
     }
 
     private var isEditMode: Bool {
         if case .edit = mode { return true }
         return false
+    }
+
+    private var hostPlaceholder: String {
+        switch connectionType {
+        case .sftp:
+            return loc("Host / IP (e.g. 192.168.1.10)", "Địa chỉ máy chủ / IP (vd: 192.168.1.10)")
+        case .ftp:
+            return loc("Host / IP (e.g. ftp.example.com)", "Địa chỉ FTP (vd: ftp.example.com)")
+        case .smb:
+            return loc("Host / Share (e.g. 192.168.1.10/Share)", "Máy chủ / Thư mục chia sẻ (vd: 192.168.1.10/Share)")
+        }
     }
 
     var body: some View {
@@ -87,21 +103,51 @@ struct ConnectionFormSheet: View {
             Form {
                 // Connection details
                 Section(loc("Connection Details", "Thông tin kết nối")) {
+                    Picker(loc("Protocol", "Giao thức"), selection: $connectionType) {
+                        ForEach(ConnectionType.allCases, id: \.self) { type in
+                            Text(type.displayName).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: connectionType) { oldType, newType in
+                        let defaultPorts = Set(ConnectionType.allCases.map { String($0.defaultPort) })
+                        if port.trimmed.isEmpty || defaultPorts.contains(port.trimmed) || port.trimmed == String(oldType.defaultPort) {
+                            port = String(newType.defaultPort)
+                        }
+                        let defaultIcons = Set(ConnectionType.allCases.map { $0.iconName })
+                        if defaultIcons.contains(iconName) {
+                            iconName = newType.iconName
+                        }
+                        if !newType.supportsPrivateKey {
+                            authMethod = .password
+                        }
+                        if !newType.supportsSocksProxy {
+                            socksProxyEnabled = false
+                        }
+                    }
+
                     TextField(loc("Name", "Tên kết nối"), text: $name)
-                    TextField(loc("Host / IP", "Địa chỉ máy chủ / IP"), text: $host)
+                    TextField(hostPlaceholder, text: $host)
                     TextField(loc("Port", "Cổng"), text: $port)
-                    TextField(loc("Username", "Tên đăng nhập"), text: $username)
+                    TextField(
+                        connectionType == .sftp
+                            ? loc("Username", "Tên đăng nhập")
+                            : loc("Username (leave empty for anonymous/guest)", "Tên đăng nhập (để trống nếu là khách/anonymous)"),
+                        text: $username
+                    )
                 }
 
                 // Authentication
                 Section(loc("Authentication", "Xác thực")) {
-                    Picker(loc("Method", "Phương thức"), selection: $authMethod) {
-                        ForEach(AuthMethod.allCases, id: \.self) { method in
-                            Text(method.displayName).tag(method)
+                    if connectionType.supportsPrivateKey {
+                        Picker(loc("Method", "Phương thức"), selection: $authMethod) {
+                            ForEach(AuthMethod.allCases, id: \.self) { method in
+                                Text(method.displayName).tag(method)
+                            }
                         }
                     }
 
-                    if authMethod == .password {
+                    if authMethod == .password || !connectionType.supportsPrivateKey {
                         SecureField(loc("Password", "Mật khẩu"), text: $password)
                         Toggle(loc("Save password in configuration file", "Lưu mật khẩu vào file cấu hình"), isOn: $savePassword)
                     } else {
@@ -114,20 +160,22 @@ struct ConnectionFormSheet: View {
                     }
                 }
 
-                // SOCKS5 Proxy
-                Section(loc("SOCKS5 Proxy (Dynamic Port Forwarding)", "SOCKS5 Proxy (Chuyển tiếp cổng)")) {
-                    Toggle(loc("Enable SOCKS5 Proxy", "Bật SOCKS5 Proxy"), isOn: $socksProxyEnabled)
-                    if socksProxyEnabled {
-                        TextField(loc("Local Proxy Port", "Cổng Proxy cục bộ"), text: $socksProxyPort)
-                            .help("Port for SOCKS5 proxy (default 1080)")
+                // SOCKS5 Proxy (SFTP/SSH only)
+                if connectionType.supportsSocksProxy {
+                    Section(loc("SOCKS5 Proxy (Dynamic Port Forwarding)", "SOCKS5 Proxy (Chuyển tiếp cổng)")) {
+                        Toggle(loc("Enable SOCKS5 Proxy", "Bật SOCKS5 Proxy"), isOn: $socksProxyEnabled)
+                        if socksProxyEnabled {
+                            TextField(loc("Local Proxy Port", "Cổng Proxy cục bộ"), text: $socksProxyPort)
+                                .help("Port for SOCKS5 proxy (default 1080)")
 
-                        Toggle(loc("Allow Local Network (LAN) Access", "Cho phép truy cập qua mạng LAN"), isOn: $socksProxyAllowLAN)
-                            .help("When enabled, listens on 0.0.0.0 allowing other devices on your LAN to use this proxy.")
+                            Toggle(loc("Allow Local Network (LAN) Access", "Cho phép truy cập qua mạng LAN"), isOn: $socksProxyAllowLAN)
+                                .help("When enabled, listens on 0.0.0.0 allowing other devices on your LAN to use this proxy.")
 
-                        if socksProxyAllowLAN, let localIP = NetworkUtils.getLocalIPAddress() {
-                            Text("LAN Endpoint: \(localIP):\(socksProxyPort)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if socksProxyAllowLAN, let localIP = NetworkUtils.getLocalIPAddress() {
+                                Text("LAN Endpoint: \(localIP):\(socksProxyPort)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -203,7 +251,7 @@ struct ConnectionFormSheet: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 580)
+        .frame(width: 500, height: 600)
         .onAppear {
             loadExistingData()
         }
@@ -214,9 +262,10 @@ struct ConnectionFormSheet: View {
     private var isValid: Bool {
         let isPortValid = (Int(port) ?? 0) > 0 && (Int(port) ?? 0) <= 65535
         let isSocksPortValid = !socksProxyEnabled || ((Int(socksProxyPort) ?? 0) > 0 && (Int(socksProxyPort) ?? 0) <= 65535)
+        let isUsernameValid = connectionType != .sftp || !username.trimmed.isEmpty
         return !name.trimmed.isEmpty &&
             !host.trimmed.isEmpty &&
-            !username.trimmed.isEmpty &&
+            isUsernameValid &&
             isPortValid &&
             isSocksPortValid &&
             (authMethod == .password || !privateKeyPath.trimmed.isEmpty)
@@ -225,7 +274,9 @@ struct ConnectionFormSheet: View {
     // MARK: - Data Loading
 
     private func loadExistingData() {
-        if case .edit(let connection) = mode {
+        switch mode {
+        case .edit(let connection):
+            connectionType = connection.connectionType
             name = connection.name
             host = connection.host
             port = String(connection.port)
@@ -244,14 +295,29 @@ struct ConnectionFormSheet: View {
             if let saved = savedPassword {
                 password = saved
             }
+        case .create:
+            if selectedFolderId == nil, let defaultFolderId {
+                selectedFolderId = defaultFolderId
+            }
         }
     }
 
     // MARK: - Save
 
     private func save() {
-        let portNumber = Int(port) ?? 22
+        let portNumber = Int(port) ?? connectionType.defaultPort
         let socksPortNumber = Int(socksProxyPort) ?? 1080
+        let resolvedUsername: String = {
+            let trimmedUser = username.trimmed
+            if !trimmedUser.isEmpty { return trimmedUser }
+            switch connectionType {
+            case .ftp: return "anonymous"
+            case .smb: return "guest"
+            case .sftp: return trimmedUser
+            }
+        }()
+        let resolvedAuthMethod: AuthMethod = connectionType.supportsPrivateKey ? authMethod : .password
+        let resolvedSocksEnabled = connectionType.supportsSocksProxy && socksProxyEnabled
 
         let connection: Connection
         if case .edit(let existing) = mode {
@@ -260,9 +326,9 @@ struct ConnectionFormSheet: View {
                 name: name.trimmed,
                 host: host.trimmed,
                 port: portNumber,
-                username: username.trimmed,
-                authMethod: authMethod,
-                privateKeyPath: authMethod == .privateKey ? privateKeyPath.trimmed : nil,
+                username: resolvedUsername,
+                authMethod: resolvedAuthMethod,
+                privateKeyPath: resolvedAuthMethod == .privateKey ? privateKeyPath.trimmed : nil,
                 savePassword: savePassword,
                 description: description.trimmed.isEmpty ? nil : description.trimmed,
                 tags: tags,
@@ -270,8 +336,8 @@ struct ConnectionFormSheet: View {
                 folderId: selectedFolderId,
                 createdAt: existing.createdAt,
                 updatedAt: Date(),
-                connectionType: .sftp,
-                socksProxyEnabled: socksProxyEnabled,
+                connectionType: connectionType,
+                socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
                 socksProxyAllowLAN: socksProxyAllowLAN
             )
@@ -280,16 +346,16 @@ struct ConnectionFormSheet: View {
                 name: name.trimmed,
                 host: host.trimmed,
                 port: portNumber,
-                username: username.trimmed,
-                authMethod: authMethod,
-                privateKeyPath: authMethod == .privateKey ? privateKeyPath.trimmed : nil,
+                username: resolvedUsername,
+                authMethod: resolvedAuthMethod,
+                privateKeyPath: resolvedAuthMethod == .privateKey ? privateKeyPath.trimmed : nil,
                 savePassword: savePassword,
                 description: description.trimmed.isEmpty ? nil : description.trimmed,
                 tags: tags,
                 iconName: iconName,
                 folderId: selectedFolderId,
-                connectionType: .sftp,
-                socksProxyEnabled: socksProxyEnabled,
+                connectionType: connectionType,
+                socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
                 socksProxyAllowLAN: socksProxyAllowLAN
             )

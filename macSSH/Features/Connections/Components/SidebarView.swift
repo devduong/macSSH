@@ -71,6 +71,14 @@ struct SidebarView: View {
                         }
                         .contextMenu {
                             Button {
+                                viewModel.requestNewConnection(inFolder: folder.id)
+                            } label: {
+                                Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle")
+                            }
+
+                            Divider()
+
+                            Button {
                                 folderToRename = folder
                                 renameText = folder.name
                                 isShowingRenameAlert = true

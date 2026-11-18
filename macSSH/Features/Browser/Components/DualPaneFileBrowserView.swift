@@ -361,7 +361,7 @@ private struct RemotePaneView: View {
 
                 // New Folder
                 Button {
-                    viewModel.isShowingNewFolderSheet = true
+                    viewModel.requestNewFolder()
                 } label: {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 11, weight: .medium))
@@ -372,7 +372,7 @@ private struct RemotePaneView: View {
 
                 // New File
                 Button {
-                    viewModel.isShowingNewFileSheet = true
+                    viewModel.requestNewFile()
                 } label: {
                     Image(systemName: "doc.badge.plus")
                         .font(.system(size: 11, weight: .medium))
@@ -393,6 +393,27 @@ private struct RemotePaneView: View {
                 .help("Refresh")
 
                 Spacer(minLength: 4)
+
+                // View File Button (SFTP, FTP, SMB)
+                Button {
+                    if let firstFile = viewModel.selectedRemoteFiles.first(where: { $0.isFile }) {
+                        Task { await viewModel.viewFile(firstFile) }
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 11))
+                        Text(loc("View", "Xem tệp"))
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+                .disabled(!viewModel.selectedRemoteFiles.contains(where: { $0.isFile }) || !viewModel.isConnected)
+                .help(loc("View selected remote file", "Xem nội dung tệp đã chọn"))
 
                 // Download Button (Remote -> Local)
                 Button {

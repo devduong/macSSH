@@ -93,11 +93,18 @@ struct ConnectionListColumn: View {
                 .help("Save, Open, Import, or Export Configuration")
 
                 Button {
-                    viewModel.isShowingNewConnectionSheet = true
+                    viewModel.requestNewConnection()
                 } label: {
-                    Label("New Connection", systemImage: "plus")
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("New")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
                 }
-                .help("New Connection")
+                .help(loc("New Connection", "Thêm kết nối mới"))
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -138,10 +145,10 @@ struct ConnectionListColumn: View {
                 EmptyStateView(
                     icon: "server.rack",
                     title: "No Connections",
-                    message: "Add a new SSH connection to get started\nwith remote file management.",
+                    message: "Add a new SFTP, FTP, or SMB connection to get started\nwith remote file management.",
                     actionTitle: "Add Connection"
                 ) {
-                    viewModel.isShowingNewConnectionSheet = true
+                    viewModel.requestNewConnection()
                 }
             case .folder:
                 EmptyStateView(
@@ -150,7 +157,7 @@ struct ConnectionListColumn: View {
                     message: "This folder has no connections.\nDrag connections here or create a new one.",
                     actionTitle: "Add Connection"
                 ) {
-                    viewModel.isShowingNewConnectionSheet = true
+                    viewModel.requestNewConnection()
                 }
             }
         } else {
@@ -280,13 +287,15 @@ struct ConnectionListColumn: View {
                     )
                 }
 
-                Button {
-                    Task { await viewModel.toggleProxy(connection) }
-                } label: {
-                    Label(
-                        connection.socksProxyEnabled ? loc("Disable SOCKS5 Proxy", "Tắt SOCKS5 Proxy") : loc("Enable SOCKS5 Proxy", "Bật SOCKS5 Proxy"),
-                        systemImage: connection.socksProxyEnabled ? "wifi.slash" : "wifi"
-                    )
+                if connection.connectionType.supportsSocksProxy {
+                    Button {
+                        Task { await viewModel.toggleProxy(connection) }
+                    } label: {
+                        Label(
+                            connection.socksProxyEnabled ? loc("Disable SOCKS5 Proxy", "Tắt SOCKS5 Proxy") : loc("Enable SOCKS5 Proxy", "Bật SOCKS5 Proxy"),
+                            systemImage: connection.socksProxyEnabled ? "wifi.slash" : "wifi"
+                        )
+                    }
                 }
 
                 Divider()
@@ -325,14 +334,14 @@ struct ConnectionListColumn: View {
             Color.clear
                 .contextMenu {
                     Button {
-                        viewModel.isShowingNewConnectionSheet = true
+                        viewModel.requestNewConnection()
                     } label: {
-                        Label("New SSH Connection", systemImage: "plus.circle.fill")
+                        Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle.fill")
                     }
                     Button {
                         viewModel.isShowingNewFolderSheet = true
                     } label: {
-                        Label("New Folder", systemImage: "folder.badge.plus")
+                        Label(loc("New Folder", "Thư mục mới"), systemImage: "folder.badge.plus")
                     }
                 }
         )

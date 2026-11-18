@@ -255,10 +255,14 @@ enum AnalyticsService {
 
     enum ConnectionProtocol: String {
         case sftp = "sftp"
+        case ftp = "ftp"
+        case smb = "smb"
 
         init(from connectionType: ConnectionType) {
             switch connectionType {
             case .sftp: self = .sftp
+            case .ftp: self = .ftp
+            case .smb: self = .smb
             }
         }
     }

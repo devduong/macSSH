@@ -73,7 +73,7 @@ struct FileEditorWindow: View {
         let container = DependencyContainer.shared
 
         do {
-            let session = container.makeSFTPSession()
+            let session = container.makeRemoteSession(for: data.connectionType)
             switch data.authMethod {
             case .password:
                 try await session.connect(
