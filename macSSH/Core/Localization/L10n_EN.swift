@@ -236,6 +236,19 @@ public enum L10n_EN {
         "ftp_custom_streams": "Custom Concurrent Streams",
         "streams": "streams",
         "replace_all": "Replace All",
-        "skip": "Skip"
+        "skip": "Skip",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "This media format is not supported by the built-in player. Click 'Open Externally' to play it with another app.",
+        "succeeded": "Succeeded",
+        "cancelled": "Cancelled",
+        "all": "All",
+        "retry": "Retry",
+        "retry_all_failed": "Retry Failed",
+        "filter_files": "Filter files…",
+        "preparing_transfers": "Preparing files…",
+        "no_matching_transfers": "No transfers match the selected filter",
+        "clear_done": "Clear Done",
+        "clear_finished": "Clear All"
     ]
 }

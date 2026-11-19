@@ -236,6 +236,19 @@ public enum L10n_RU {
         "ftp_custom_streams": "Своё количество потоков",
         "streams": "потоков",
         "replace_all": "Заменить все",
-        "skip": "Пропустить"
+        "skip": "Пропустить",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "Этот формат медиа не поддерживается встроенным плеером. Нажмите 'Open Externally', чтобы открыть файл в другом приложении.",
+        "succeeded": "Успешно",
+        "cancelled": "Отменено",
+        "all": "Все",
+        "retry": "Повторить",
+        "retry_all_failed": "Повторить ошибки",
+        "filter_files": "Фильтр файлов…",
+        "preparing_transfers": "Подготовка файлов…",
+        "no_matching_transfers": "Нет передач, соответствующих фильтру",
+        "clear_done": "Очистить готовые",
+        "clear_finished": "Очистить всё"
     ]
 }

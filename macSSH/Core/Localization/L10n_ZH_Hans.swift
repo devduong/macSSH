@@ -236,6 +236,19 @@ public enum L10n_ZH_Hans {
         "ftp_custom_streams": "自定义并发线程数",
         "streams": "线程",
         "replace_all": "全部替换",
-        "skip": "跳过"
+        "skip": "跳过",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "内置播放器不支持此媒体格式。请点击“Open Externally”使用其他应用播放。",
+        "succeeded": "成功",
+        "cancelled": "已取消",
+        "all": "全部",
+        "retry": "重试",
+        "retry_all_failed": "重试失败项",
+        "filter_files": "筛选文件…",
+        "preparing_transfers": "正在准备文件…",
+        "no_matching_transfers": "没有符合筛选条件的传输",
+        "clear_done": "清除已完成",
+        "clear_finished": "全部清除"
     ]
 }

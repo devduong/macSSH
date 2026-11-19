@@ -236,6 +236,19 @@ public enum L10n_FR {
         "ftp_custom_streams": "Flux simultanés personnalisés",
         "streams": "flux",
         "replace_all": "Tout remplacer",
-        "skip": "Ignorer"
+        "skip": "Ignorer",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "Ce format multimédia n'est pas pris en charge par le lecteur intégré. Cliquez sur 'Open Externally' pour l'ouvrir avec une autre application.",
+        "succeeded": "Réussi",
+        "cancelled": "Annulé",
+        "all": "Tout",
+        "retry": "Réessayer",
+        "retry_all_failed": "Réessayer les échecs",
+        "filter_files": "Filtrer les fichiers…",
+        "preparing_transfers": "Préparation des fichiers…",
+        "no_matching_transfers": "Aucun transfert ne correspond au filtre",
+        "clear_done": "Effacer réussis",
+        "clear_finished": "Tout effacer"
     ]
 }

@@ -7,8 +7,24 @@
 
 import Foundation
 
+/// Thread-safe cached byte formatter to avoid allocating ByteCountFormatter per transfer row render.
+enum TransferByteFormatter {
+    private static let lock = NSLock()
+    private static let formatter: ByteCountFormatter = {
+        let fmt = ByteCountFormatter()
+        fmt.countStyle = .file
+        return fmt
+    }()
+
+    static func string(for bytes: Int64) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
 /// Represents the progress of a file transfer operation
-struct TransferProgress: Identifiable, Sendable {
+struct TransferProgress: Identifiable, Sendable, Equatable {
     let id: UUID
     let fileName: String
     let localURL: URL?
@@ -39,7 +55,8 @@ struct TransferProgress: Identifiable, Sendable {
         transferType: TransferType = .upload,
         status: TransferStatus = .inProgress,
         startTime: Date = Date(),
-        speed: Double = 0
+        speed: Double = 0,
+        error: String? = nil
     ) {
         self.id = id
         self.fileName = fileName
@@ -51,11 +68,12 @@ struct TransferProgress: Identifiable, Sendable {
         self.status = status
         self.startTime = startTime
         self.speed = speed
+        self.error = error
     }
 
     /// Progress as a fraction (0.0 to 1.0)
     var fractionCompleted: Double {
-        guard totalBytes > 0 else { return 0 }
+        guard totalBytes > 0 else { return status == .completed ? 1.0 : 0 }
         return min(1.0, max(0.0, Double(bytesTransferred) / Double(totalBytes)))
     }
 
@@ -66,8 +84,8 @@ struct TransferProgress: Identifiable, Sendable {
 
     /// Formatted string showing bytes transferred / total bytes
     var progressText: String {
-        let transferred = ByteCountFormatter.string(fromByteCount: bytesTransferred, countStyle: .file)
-        let total = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        let transferred = TransferByteFormatter.string(for: bytesTransferred)
+        let total = TransferByteFormatter.string(for: totalBytes)
         return "\(transferred) / \(total)"
     }
 
@@ -76,7 +94,7 @@ struct TransferProgress: Identifiable, Sendable {
         guard status == .inProgress, speed > 0 else {
             return status == .completed ? "Done" : "--"
         }
-        let speedStr = ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file)
+        let speedStr = TransferByteFormatter.string(for: Int64(speed))
         return "\(speedStr)/s"
     }
 
@@ -116,14 +134,19 @@ struct TransferProgress: Identifiable, Sendable {
         status == .inProgress || status == .pending
     }
 
+    /// Whether the transfer can be retried (failed or cancelled with a known local URL)
+    var isRetryable: Bool {
+        (status == .failed || status == .cancelled) && localURL != nil
+    }
+
     /// Total size formatted
     var totalSizeText: String {
-        ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        TransferByteFormatter.string(for: totalBytes)
     }
 }
 
 /// Status of a transfer operation
-enum TransferStatus: Sendable, Equatable {
+enum TransferStatus: Sendable, Equatable, Hashable {
     case pending
     case inProgress
     case completed
@@ -132,7 +155,7 @@ enum TransferStatus: Sendable, Equatable {
 }
 
 /// Type of transfer
-enum TransferType: Sendable, Equatable {
+enum TransferType: Sendable, Equatable, Hashable {
     case upload
     case download
 }

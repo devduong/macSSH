@@ -19,6 +19,7 @@ struct FileViewerSheet: View {
     let onClose: () -> Void
 
     @State private var viewerMode: ViewerContentMode = .loading
+    @State private var mediaPlayer: AVPlayer?
     @State private var zoomScale: CGFloat = 1.0
     @State private var searchText: String = ""
     @State private var isCopied: Bool = false
@@ -45,6 +46,9 @@ struct FileViewerSheet: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .task {
             await loadFileForViewing()
+        }
+        .onDisappear {
+            cleanupMediaPlayer()
         }
     }
 
@@ -177,6 +181,7 @@ struct FileViewerSheet: View {
             .controlSize(.small)
 
             Button {
+                cleanupMediaPlayer()
                 onClose()
             } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -231,9 +236,15 @@ struct FileViewerSheet: View {
             PDFKitRepresentedView(document: document)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-        case .media(let url):
-            VideoPlayer(player: AVPlayer(url: url))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .media:
+            if let player = mediaPlayer {
+                AVPlayerViewRepresentable(player: player)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
         case .binaryHex(let hexDump, let byteCount):
             VStack(alignment: .leading, spacing: 0) {
@@ -274,6 +285,13 @@ struct FileViewerSheet: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                Button {
+                    NSWorkspace.shared.open(localFileURL)
+                } label: {
+                    Label(loc("Open Externally", "Mở bằng App ngoài"), systemImage: "arrow.up.forward.app")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(24)
@@ -379,9 +397,31 @@ struct FileViewerSheet: View {
             return
         }
 
-        // 3. Check Audio / Video
+        // 3. Check Audio / Video (uses native AppKit AVPlayerView to avoid _AVKit_SwiftUI crash)
         if file.fileType == .video || file.fileType == .audio {
-            viewerMode = .media(localFileURL)
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: localFileURL.path)[.size] as? Int64) ?? 0
+            guard fileSize > 0 else {
+                viewerMode = .error(loc(
+                    "The media file is empty (0 bytes) and cannot be played.",
+                    "Tệp media trống (0 byte) và không thể phát."
+                ))
+                return
+            }
+
+            let asset = AVURLAsset(url: localFileURL)
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                guard isPlayable else {
+                    viewerMode = .error(L10n.tr("media_unsupported_error"))
+                    return
+                }
+                let item = AVPlayerItem(asset: asset)
+                let player = AVPlayer(playerItem: item)
+                mediaPlayer = player
+                viewerMode = .media(localFileURL)
+            } catch {
+                viewerMode = .error(L10n.tr("media_unsupported_error"))
+            }
             return
         }
 
@@ -420,6 +460,12 @@ struct FileViewerSheet: View {
         }
     }
 
+    private func cleanupMediaPlayer() {
+        mediaPlayer?.pause()
+        mediaPlayer?.replaceCurrentItem(with: nil)
+        mediaPlayer = nil
+    }
+
     private static func formatHexDump(data: Data) -> String {
         var lines: [String] = []
         let bytes = Array(data)
@@ -443,6 +489,32 @@ struct FileViewerSheet: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - AVKit Native NSViewRepresentable (Directly links AVKit, avoids _AVKit_SwiftUI crash)
+private struct AVPlayerViewRepresentable: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let playerView = AVPlayerView()
+        playerView.controlsStyle = .inline
+        playerView.showsFullScreenToggleButton = true
+        playerView.allowsPictureInPicturePlayback = true
+        playerView.player = player
+        return playerView
+    }
+
+    func updateNSView(_ playerView: AVPlayerView, context: Context) {
+        if playerView.player !== player {
+            playerView.player = player
+        }
+    }
+
+    static func dismantleNSView(_ playerView: AVPlayerView, coordinator: ()) {
+        playerView.player?.pause()
+        playerView.player?.replaceCurrentItem(with: nil)
+        playerView.player = nil
     }
 }
 

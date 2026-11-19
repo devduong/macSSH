@@ -396,7 +396,9 @@ private struct FileBrowserSheets: ViewModifier {
                     }
                 )
             }
-            .sheet(item: $viewModel.viewedFileSession) { session in
+            .sheet(item: $viewModel.viewedFileSession, onDismiss: {
+                viewModel.closeFileViewer()
+            }) { session in
                 FileViewerSheet(
                     file: session.file,
                     localFileURL: session.localURL,

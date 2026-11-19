@@ -114,16 +114,19 @@ struct NativeFileTableView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        let filesChanged = context.coordinator.files != files
         context.coordinator.viewModel = viewModel
         context.coordinator.files = files
         context.coordinator.onDoubleClick = onDoubleClick
         context.coordinator.onGetInfo = onGetInfo
         context.coordinator.onOpenEditor = onOpenEditor
 
-        // Update selection state and reload data
+        // Update selection state and reload data only when the file list changed
         if let tableView = context.coordinator.tableView {
             context.coordinator.isUpdating = true
-            tableView.reloadData()
+            if filesChanged {
+                tableView.reloadData()
+            }
 
             // Sync selection from viewModel to tableView
             let selectedIndexes = NSMutableIndexSet()
@@ -132,7 +135,10 @@ struct NativeFileTableView: NSViewRepresentable {
                     selectedIndexes.add(index)
                 }
             }
-            tableView.selectRowIndexes(selectedIndexes as IndexSet, byExtendingSelection: false)
+            let targetSelection = selectedIndexes as IndexSet
+            if filesChanged || tableView.selectedRowIndexes != targetSelection {
+                tableView.selectRowIndexes(targetSelection, byExtendingSelection: false)
+            }
             context.coordinator.isUpdating = false
         }
     }

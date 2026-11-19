@@ -17,6 +17,9 @@ protocol FileRepositoryProtocol: Sendable {
     /// Creates a directory
     func createDirectory(at path: String) async throws
 
+    /// Creates multiple directories efficiently
+    func createDirectories(at paths: [String]) async throws
+
     /// Creates an empty file
     func createFile(at path: String) async throws
 
@@ -62,6 +65,13 @@ protocol FileRepositoryProtocol: Sendable {
 
 extension FileRepositoryProtocol {
     func setPreferredMaxStreams(_ count: Int) async {}
+
+    func createDirectories(at paths: [String]) async throws {
+        for path in paths {
+            try Task.checkCancellation()
+            try? await createDirectory(at: path)
+        }
+    }
 
     func download(
         remotePath: String,

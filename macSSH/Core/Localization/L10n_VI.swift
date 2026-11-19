@@ -236,6 +236,19 @@ public enum L10n_VI {
         "ftp_custom_streams": "Tùy chỉnh số luồng truyền tải",
         "streams": "luồng",
         "replace_all": "Ghi đè tất cả",
-        "skip": "Bỏ qua"
+        "skip": "Bỏ qua",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "Trình phát tích hợp không hỗ trợ định dạng media này. Hãy bấm 'Mở bằng App ngoài' để phát bằng ứng dụng khác.",
+        "succeeded": "Thành công",
+        "cancelled": "Đã hủy",
+        "all": "Tất cả",
+        "retry": "Thử lại",
+        "retry_all_failed": "Thử lại lỗi",
+        "filter_files": "Lọc theo tên…",
+        "preparing_transfers": "Đang chuẩn bị tệp…",
+        "no_matching_transfers": "Không có tệp nào khớp bộ lọc",
+        "clear_done": "Xóa xong",
+        "clear_finished": "Xóa tất cả"
     ]
 }

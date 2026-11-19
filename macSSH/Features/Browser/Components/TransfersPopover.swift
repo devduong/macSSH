@@ -31,11 +31,21 @@ struct TransfersPopover: View {
     }
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text("Transfers")
                 .font(.system(size: 13, weight: .semibold))
 
             Spacer()
+
+            let failedCount = viewModel.uploadFailedCount + viewModel.downloadFailedCount
+            if failedCount > 0 {
+                Button("\(L10n.tr("retry_all_failed")) (\(failedCount))") {
+                    viewModel.retryAllFailed()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.orange)
+            }
 
             if viewModel.hasActiveTransfers {
                 Button("Cancel All") {
@@ -46,7 +56,7 @@ struct TransfersPopover: View {
                 .foregroundStyle(.red)
             }
 
-            if !viewModel.recentTransfers.isEmpty {
+            if viewModel.hasCompletedTransfers {
                 Button("Clear") {
                     viewModel.clearCompletedTransfers()
                 }
@@ -98,6 +108,9 @@ struct TransfersPopover: View {
                 onCancel: {
                     viewModel.cancelTransfer(transfer)
                 },
+                onRetry: {
+                    viewModel.retryTransfer(transfer)
+                },
                 onRemove: {
                     viewModel.removeTransfer(transfer)
                 }
@@ -115,6 +128,7 @@ struct TransfersPopover: View {
 struct TransferItemView: View {
     let transfer: TransferProgress
     let onCancel: () -> Void
+    let onRetry: () -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
@@ -171,17 +185,29 @@ struct TransferItemView: View {
             }
 
             // Trailing action — always rendered to prevent layout shifts on hover
-            Button(action: transfer.isCancellable ? onCancel : onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: transfer.isCancellable ? 16 : 14))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                if transfer.isRetryable {
+                    Button(action: onRetry) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.tr("retry"))
+                }
+
+                Button(action: transfer.isCancellable ? onCancel : onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: transfer.isCancellable ? 16 : 14))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .opacity(transfer.isCancellable || transfer.isRetryable || isHovering ? 1 : 0)
+                .help(transfer.isCancellable
+                    ? (transfer.transferType == .download ? "Cancel download" : "Cancel upload")
+                    : "Remove from list")
             }
-            .buttonStyle(.plain)
-            .opacity(transfer.isCancellable || isHovering ? 1 : 0)
-            .help(transfer.isCancellable
-                ? (transfer.transferType == .download ? "Cancel download" : "Cancel upload")
-                : "Remove from list")
-            .frame(width: 20, alignment: .center)
+            .frame(minWidth: 20, alignment: .trailing)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

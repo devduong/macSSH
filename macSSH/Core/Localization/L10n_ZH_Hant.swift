@@ -236,6 +236,19 @@ public enum L10n_ZH_Hant {
         "ftp_custom_streams": "自訂並行連線數",
         "streams": "執行緒",
         "replace_all": "全部取代",
-        "skip": "略過"
+        "skip": "略過",
+
+        // MARK: - Transfer Queue Filter, Retry & Media Viewer
+        "media_unsupported_error": "內建播放器不支援此媒體格式。請點擊「Open Externally」使用其他應用程式播放。",
+        "succeeded": "成功",
+        "cancelled": "已取消",
+        "all": "全部",
+        "retry": "重試",
+        "retry_all_failed": "重試失敗項目",
+        "filter_files": "篩選檔案…",
+        "preparing_transfers": "正在準備檔案…",
+        "no_matching_transfers": "沒有符合篩選條件的傳輸",
+        "clear_done": "清除已完成",
+        "clear_finished": "全部清除"
     ]
 }

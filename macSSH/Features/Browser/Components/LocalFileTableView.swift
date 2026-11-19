@@ -71,6 +71,7 @@ struct LocalFileTableView: NSViewRepresentable {
         tableView.doubleAction = #selector(Coordinator.onDoubleClicked(_:))
 
         context.coordinator.tableView = tableView
+        context.coordinator.files = state.files
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -81,6 +82,9 @@ struct LocalFileTableView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        let currentFiles = state.files
+        let filesChanged = context.coordinator.files != currentFiles
+        context.coordinator.files = currentFiles
         context.coordinator.state = state
         context.coordinator.onUpload = onUpload
         context.coordinator.onNavigate = onNavigate
@@ -88,17 +92,19 @@ struct LocalFileTableView: NSViewRepresentable {
 
         if let tableView = scrollView.documentView as? NSTableView {
             context.coordinator.isUpdating = true
-            tableView.reloadData()
+            if filesChanged {
+                tableView.reloadData()
+            }
 
             // Update selection without triggering recursive observer loop
             let currentSelected = state.selectedFileIds
             var indexSet = IndexSet()
-            for (index, file) in state.files.enumerated() {
+            for (index, file) in currentFiles.enumerated() {
                 if currentSelected.contains(file.id) {
                     indexSet.insert(index)
                 }
             }
-            if tableView.selectedRowIndexes != indexSet {
+            if filesChanged || tableView.selectedRowIndexes != indexSet {
                 tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
             }
             context.coordinator.isUpdating = false
@@ -123,6 +129,7 @@ struct LocalFileTableView: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource {
         weak var state: LocalFileBrowserState?
+        var files: [RemoteFile] = []
         var onUpload: (RemoteFile) -> Void
         var onNavigate: (URL) -> Void
         var onDropRemoteFiles: ((URL, [RemoteFile]) -> Void)?
@@ -130,6 +137,7 @@ struct LocalFileTableView: NSViewRepresentable {
         var isUpdating: Bool = false
 
         func cleanup() {
+            files.removeAll()
             state = nil
             tableView = nil
             onUpload = { _ in }
@@ -139,6 +147,7 @@ struct LocalFileTableView: NSViewRepresentable {
 
         init(state: LocalFileBrowserState, onUpload: @escaping (RemoteFile) -> Void, onNavigate: @escaping (URL) -> Void, onDropRemoteFiles: ((URL, [RemoteFile]) -> Void)? = nil) {
             self.state = state
+            self.files = state.files
             self.onUpload = onUpload
             self.onNavigate = onNavigate
             self.onDropRemoteFiles = onDropRemoteFiles

@@ -50,6 +50,9 @@ protocol SFTPSessionProtocol: Sendable {
     /// Create a directory
     func createDirectory(at path: String) async throws
 
+    /// Create multiple directories (optimized batch operation when supported)
+    func createDirectories(at paths: [String]) async throws
+
     /// Create an empty file
     func createFile(at path: String) async throws
 
@@ -105,6 +108,13 @@ protocol SFTPSessionProtocol: Sendable {
 // MARK: - Default Implementations
 extension SFTPSessionProtocol {
     func setPreferredMaxStreams(_ count: Int) async {}
+
+    func createDirectories(at paths: [String]) async throws {
+        for path in paths {
+            try Task.checkCancellation()
+            try? await createDirectory(at: path)
+        }
+    }
 
     func downloadFile(
         from remotePath: String,

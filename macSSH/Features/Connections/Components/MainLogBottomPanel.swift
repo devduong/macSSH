@@ -341,18 +341,53 @@ struct MainLogBottomPanel: View {
 }
 
 // MARK: - Native AppKit Resize Cursor View
-private struct ResizeCursorView: NSViewRepresentable {
+struct ResizeCursorView: NSViewRepresentable {
     func makeNSView(context: Context) -> CursorTrackingNSView {
-        let view = CursorTrackingNSView()
-        return view
+        CursorTrackingNSView()
     }
 
-    func updateNSView(_ nsView: CursorTrackingNSView, context: Context) {}
+    func updateNSView(_ nsView: CursorTrackingNSView, context: Context) {
+        nsView.window?.invalidateCursorRects(for: nsView)
+    }
 
-    class CursorTrackingNSView: NSView {
+    final class CursorTrackingNSView: NSView {
+        private var trackingArea: NSTrackingArea?
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.invalidateCursorRects(for: self)
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingArea {
+                removeTrackingArea(existing)
+            }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.cursorUpdate, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            trackingArea = area
+        }
+
         override func resetCursorRects() {
             super.resetCursorRects()
             addCursorRect(bounds, cursor: .resizeUpDown)
+        }
+
+        override func cursorUpdate(with event: NSEvent) {
+            NSCursor.resizeUpDown.set()
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            NSCursor.resizeUpDown.set()
         }
     }
 }

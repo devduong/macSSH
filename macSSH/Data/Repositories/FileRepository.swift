@@ -26,6 +26,10 @@ final class FileRepository: FileRepositoryProtocol, @unchecked Sendable {
         try await sftpSession.createDirectory(at: path)
     }
 
+    func createDirectories(at paths: [String]) async throws {
+        try await sftpSession.createDirectories(at: paths)
+    }
+
     func createFile(at path: String) async throws {
         try await sftpSession.createFile(at: path)
     }

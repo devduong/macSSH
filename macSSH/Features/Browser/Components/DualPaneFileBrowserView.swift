@@ -13,24 +13,30 @@ struct DualPaneFileBrowserView: View {
     let onGetInfo: (RemoteFile) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            HSplitView {
-                // MARK: - Left Pane: Local Files
-                LocalPaneView(viewModel: viewModel)
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                HSplitView {
+                    // MARK: - Left Pane: Local Files
+                    LocalPaneView(viewModel: viewModel)
+                        .frame(minWidth: 350, maxWidth: .infinity)
+
+                    // MARK: - Right Pane: Remote Files
+                    RemotePaneView(
+                        viewModel: viewModel,
+                        onOpenEditor: onOpenEditor,
+                        onGetInfo: onGetInfo
+                    )
                     .frame(minWidth: 350, maxWidth: .infinity)
+                }
+                .frame(maxHeight: .infinity)
 
-                // MARK: - Right Pane: Remote Files
-                RemotePaneView(
+                // MARK: - Bottom Panel: Upload Queue, Download Queue & Activity Log
+                Divider()
+                TransferQueueBottomPanel(
                     viewModel: viewModel,
-                    onOpenEditor: onOpenEditor,
-                    onGetInfo: onGetInfo
+                    maxExpandedHeight: max(180, geo.size.height - 180)
                 )
-                .frame(minWidth: 350, maxWidth: .infinity)
             }
-
-            // MARK: - Bottom Panel: Upload Queue, Download Queue & Activity Log
-            Divider()
-            TransferQueueBottomPanel(viewModel: viewModel)
         }
     }
 }
