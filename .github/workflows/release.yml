@@ -1,0 +1,139 @@
+name: Stable Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (defaults to APP_VERSION in .env)"
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: stable-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Safeguard: only run on the public repository to avoid consuming private macOS CI/CD quota
+    if: github.event.repository.private == false && (github.event_name == 'workflow_dispatch' || !contains(github.ref_name, '-'))
+    uses: ./.github/workflows/build-dmg.yml
+    with:
+      channel: release
+      expected_tag: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
+  publish:
+    name: Publish Stable GitHub Release
+    if: github.event.repository.private == false && (github.event_name == 'workflow_dispatch' || !contains(github.ref_name, '-'))
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download packaged DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: dist
+
+      - name: Publish Stable GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_VERSION: ${{ needs.build.outputs.app_version }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+          ARCH_LABEL: ${{ needs.build.outputs.arch_label }}
+          DMG_FILE: ${{ needs.build.outputs.dmg_file }}
+          DMG_SHA256: ${{ needs.build.outputs.dmg_sha256 }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          elif [ -n "${DISPATCH_TAG}" ]; then
+            TAG_NAME="${DISPATCH_TAG}"
+          else
+            TAG_NAME="${APP_VERSION}"
+          fi
+
+          if ! [[ "${TAG_NAME}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid stable release tag '${TAG_NAME}'. Expected x.y.z or vx.y.z"
+            exit 1
+          fi
+
+          ASSET_PATH="dist/${DMG_FILE}"
+          if [ ! -f "${ASSET_PATH}" ]; then
+            echo "::error::Expected DMG artifact at ${ASSET_PATH}"
+            exit 1
+          fi
+
+          BUILD_DATE_UTC=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          PREV_STABLE_TAG=$(git tag --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | grep -Fxv "${TAG_NAME}" | head -n 1 || true)
+
+          if [ -n "${PREV_STABLE_TAG}" ]; then
+            CHANGELOG=$(git log --oneline --no-decorate "${PREV_STABLE_TAG}..HEAD" | sed 's/^/- /' || true)
+          else
+            CHANGELOG=$(git log --oneline --no-decorate -n 20 | sed 's/^/- /' || true)
+          fi
+
+          if [ -z "${CHANGELOG}" ]; then
+            CHANGELOG="- $(git log -1 --oneline --no-decorate HEAD)"
+          fi
+
+          NOTES_FILE="${RUNNER_TEMP}/stable_release_notes.md"
+          {
+            echo "## macSSH ${APP_VERSION}"
+            echo ""
+            echo "| Field | Value |"
+            echo "| :--- | :--- |"
+            echo "| **Version** | \`${APP_VERSION}\` (Build \`${BUILD_NUMBER}\`) |"
+            echo "| **Architecture** | \`${ARCH_LABEL}\` (\`arm64\` + \`x86_64\`) |"
+            echo "| **Commit** | [\`${SHORT_SHA}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) |"
+            echo "| **Released at** | \`${BUILD_DATE_UTC}\` |"
+            echo "| **SHA-256 (\`${DMG_FILE}\`)** | \`${DMG_SHA256}\` |"
+            echo ""
+            echo "### Gatekeeper Note"
+            echo "> If macOS warns that \`macSSH\` cannot be opened on first launch, open **System Settings → Privacy & Security → Open Anyway**."
+            echo ""
+            echo "### What's Changed${PREV_STABLE_TAG:+ since \`${PREV_STABLE_TAG}\`}"
+            echo "${CHANGELOG}"
+          } > "${NOTES_FILE}"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+              git tag "${TAG_NAME}" "${GITHUB_SHA}"
+              git push origin "refs/tags/${TAG_NAME}"
+            fi
+          fi
+
+          if gh release view "${TAG_NAME}" --json id >/dev/null 2>&1; then
+            echo "Updating existing release '${TAG_NAME}'..."
+            gh release upload "${TAG_NAME}" "${ASSET_PATH}" --clobber
+            gh release edit "${TAG_NAME}" \
+              --prerelease=false \
+              --draft=false \
+              --latest \
+              --target "${GITHUB_SHA}" \
+              --title "${APP_VERSION}" \
+              --notes-file "${NOTES_FILE}"
+          else
+            echo "Creating official release '${TAG_NAME}'..."
+            gh release create "${TAG_NAME}" "${ASSET_PATH}" \
+              --prerelease=false \
+              --latest \
+              --title "${APP_VERSION}" \
+              --notes-file "${NOTES_FILE}"
+          fi

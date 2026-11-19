@@ -1,0 +1,242 @@
+name: Reusable Build Universal DMG
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Release channel label (e.g. alpha or release)"
+        required: true
+        type: string
+      expected_tag:
+        description: "Optional version tag (e.g. 0.3.0) to validate against APP_VERSION in .env"
+        required: false
+        type: string
+        default: ""
+    outputs:
+      app_name:
+        description: "Application name from .env"
+        value: ${{ jobs.build.outputs.app_name }}
+      app_version:
+        description: "Application version from .env"
+        value: ${{ jobs.build.outputs.app_version }}
+      build_number:
+        description: "Build number from .env"
+        value: ${{ jobs.build.outputs.build_number }}
+      arch_label:
+        description: "Architecture label from .env"
+        value: ${{ jobs.build.outputs.arch_label }}
+      dmg_file:
+        description: "Packaged DMG filename"
+        value: ${{ jobs.build.outputs.dmg_file }}
+      dmg_sha256:
+        description: "SHA-256 checksum of packaged DMG"
+        value: ${{ jobs.build.outputs.dmg_sha256 }}
+      short_sha:
+        description: "7-character commit SHA"
+        value: ${{ jobs.build.outputs.short_sha }}
+      artifact_name:
+        description: "Uploaded workflow artifact name"
+        value: ${{ jobs.build.outputs.artifact_name }}
+
+jobs:
+  build:
+    name: Build & Package Universal DMG
+    # Safeguard: only run on the public repository to avoid consuming private macOS CI/CD quota
+    if: github.event.repository.private == false
+    runs-on: macos-15
+
+    outputs:
+      app_name: ${{ steps.meta.outputs.app_name }}
+      app_version: ${{ steps.meta.outputs.app_version }}
+      build_number: ${{ steps.meta.outputs.build_number }}
+      arch_label: ${{ steps.meta.outputs.arch_label }}
+      dmg_file: ${{ steps.meta.outputs.dmg_file }}
+      dmg_sha256: ${{ steps.package.outputs.dmg_sha256 }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 16
+        run: |
+          set -euo pipefail
+          XCODE_APP=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1 || true)
+          if [ -n "$XCODE_APP" ] && [ -d "$XCODE_APP/Contents/Developer" ]; then
+            sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          fi
+          xcodebuild -version
+          xcrun --show-sdk-path --sdk macosx
+
+      - name: Load metadata from .env and validate
+        id: meta
+        env:
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          EXPECTED_TAG: ${{ inputs.expected_tag }}
+        run: |
+          set -euo pipefail
+          if [ -f ".env" ]; then
+            while IFS='=' read -r key val || [ -n "$key" ]; do
+              [[ "$key" =~ ^[[:space:]]*# ]] && continue
+              [[ -z "${key// /}" ]] && continue
+              key=$(echo "$key" | tr -d '[:space:]')
+              val=$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+              printf -v "$key" '%s' "$val"
+            done < ".env"
+          fi
+
+          ARCH_LABEL="${ARCH_LABEL:-${ARCHITECTURE:-Universal}}"
+          APP_NAME="${APP_NAME:-macSSH}"
+          APP_VERSION="${APP_VERSION:-0.0.0}"
+          BUILD_NUMBER="${BUILD_NUMBER:-1}"
+          DMG_FILE="${APP_NAME}_${ARCH_LABEL}_${APP_VERSION}.dmg"
+          SHORT_SHA=$(git rev-parse --short=7 "${GITHUB_SHA}")
+          ARTIFACT_NAME="${APP_NAME}-${APP_VERSION}-${INPUT_CHANNEL}-${SHORT_SHA}"
+
+          if [ -n "${EXPECTED_TAG}" ]; then
+            NORMALIZED_TAG="${EXPECTED_TAG#v}"
+            if [ "${NORMALIZED_TAG}" != "${APP_VERSION}" ]; then
+              echo "::error::Tag '${EXPECTED_TAG}' (${NORMALIZED_TAG}) does not match APP_VERSION '${APP_VERSION}' in .env"
+              exit 1
+            fi
+          fi
+
+          {
+            echo "APP_NAME=${APP_NAME}"
+            echo "APP_VERSION=${APP_VERSION}"
+            echo "BUILD_NUMBER=${BUILD_NUMBER}"
+            echo "ARCH_LABEL=${ARCH_LABEL}"
+            echo "DMG_FILE=${DMG_FILE}"
+            echo "SHORT_SHA=${SHORT_SHA}"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "app_name=${APP_NAME}"
+            echo "app_version=${APP_VERSION}"
+            echo "build_number=${BUILD_NUMBER}"
+            echo "arch_label=${ARCH_LABEL}"
+            echo "dmg_file=${DMG_FILE}"
+            echo "short_sha=${SHORT_SHA}"
+            echo "artifact_name=${ARTIFACT_NAME}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Packaging ${APP_NAME} v${APP_VERSION} (Build ${BUILD_NUMBER}) [${ARCH_LABEL}] (${INPUT_CHANNEL}) @ ${SHORT_SHA}"
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('macSSH.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Build Universal Release App
+        run: |
+          set -euo pipefail
+          BUILD_DIR="build"
+
+          xcodebuild \
+            -project macSSH.xcodeproj \
+            -scheme macSSH \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -derivedDataPath "${BUILD_DIR}/DerivedData" \
+            -clonedSourcePackagesDirPath "${BUILD_DIR}/SourcePackages" \
+            ONLY_ACTIVE_ARCH=NO \
+            ARCHS="arm64 x86_64" \
+            MARKETING_VERSION="${APP_VERSION}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            MACSSH_VERSION="${APP_VERSION}" \
+            MACSSH_BUILD_NUMBER="${BUILD_NUMBER}" \
+            GCC_GENERATE_DEBUGGING_SYMBOLS=NO \
+            DEBUG_INFORMATION_FORMAT=dwarf \
+            SWIFT_OPTIMIZATION_LEVEL=-O \
+            SWIFT_COMPILATION_MODE=wholemodule \
+            DEAD_CODE_STRIPPING=YES \
+            DEPLOYMENT_POSTPROCESSING=YES \
+            STRIP_INSTALLED_PRODUCT=YES \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            build
+
+          APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
+          BUILT_APP="${BUILD_DIR}/DerivedData/Build/Products/Release/${APP_NAME}.app"
+          if [ ! -d "${BUILT_APP}" ]; then
+            echo "::error::Built app not found at ${BUILT_APP}"
+            exit 1
+          fi
+
+          rm -rf "${APP_BUNDLE}"
+          cp -R "${BUILT_APP}" "${BUILD_DIR}/"
+
+          APP_EXECUTABLE=$(find "${APP_BUNDLE}/Contents/MacOS" -type f -perm +111 | head -n 1)
+          if [ -z "${APP_EXECUTABLE}" ]; then
+            echo "::error::Executable not found inside ${APP_BUNDLE}/Contents/MacOS"
+            exit 1
+          fi
+
+          echo "Stripping debug symbols..."
+          strip -r -u "$APP_EXECUTABLE" 2>/dev/null || strip -S -x "$APP_EXECUTABLE" 2>/dev/null || strip "$APP_EXECUTABLE" 2>/dev/null || true
+
+          ARCH_INFO=$(lipo -info "$APP_EXECUTABLE")
+          echo "Binary Architecture Info: ${ARCH_INFO}"
+          if [[ "$ARCH_INFO" != *"arm64"* ]] || [[ "$ARCH_INFO" != *"x86_64"* ]]; then
+            echo "::error::Expected Universal binary (arm64 + x86_64), got: ${ARCH_INFO}"
+            exit 1
+          fi
+
+          xattr -cr "${APP_BUNDLE}" || true
+          find "${APP_BUNDLE}" -name ".DS_Store" -delete || true
+
+          echo "Ad-hoc signing app bundle..."
+          codesign --force --deep --sign - "${APP_BUNDLE}"
+          codesign --verify --deep --strict --verbose=2 "${APP_BUNDLE}"
+
+      - name: Package DMG
+        id: package
+        run: |
+          set -euo pipefail
+          BUILD_DIR="build"
+          DMG_DIR="dmg-staging"
+
+          rm -rf "${DMG_DIR}"
+          mkdir -p "${DMG_DIR}"
+          cp -R "${BUILD_DIR}/${APP_NAME}.app" "${DMG_DIR}/"
+          ln -s /Applications "${DMG_DIR}/Applications"
+          find "${DMG_DIR}" -name ".DS_Store" -delete || true
+
+          for attempt in 1 2 3; do
+            rm -f "${DMG_FILE}"
+            if hdiutil create -volname "${APP_NAME}" \
+              -srcfolder "${DMG_DIR}" \
+              -ov -format UDZO \
+              -imagekey zlib-level=9 \
+              "${DMG_FILE}"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::hdiutil create failed after 3 attempts"
+              exit 1
+            fi
+            echo "hdiutil create failed (attempt ${attempt}), retrying in 5s..."
+            sleep 5
+          done
+
+          rm -rf "${DMG_DIR}"
+
+          SHA256=$(shasum -a 256 "${DMG_FILE}" | awk '{print $1}')
+          echo "dmg_sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "Created ${DMG_FILE} ($(du -h "${DMG_FILE}" | cut -f1)), SHA-256: ${SHA256}"
+
+      - name: Upload DMG workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ env.DMG_FILE }}
+          retention-days: 7
