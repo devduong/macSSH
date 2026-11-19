@@ -381,6 +381,8 @@ final class ConnectionSessionManager: ObservableObject {
     // MARK: - Disconnect
 
     func disconnect(_ connectionId: UUID) async {
+        await FinderMountManager.shared.unmount(connectionId: connectionId, showToast: false)
+
         guard let session = activeSessions.removeValue(forKey: connectionId) else {
             WindowManager.shared.markConnectionInactive(connectionId)
             return
@@ -395,6 +397,7 @@ final class ConnectionSessionManager: ObservableObject {
     }
 
     func disconnectAll() async {
+        await FinderMountManager.shared.unmountAll()
         let keys = Array(activeSessions.keys)
         for key in keys {
             await disconnect(key)

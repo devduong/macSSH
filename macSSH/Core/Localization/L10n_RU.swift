@@ -249,6 +249,16 @@ public enum L10n_RU {
         "preparing_transfers": "Подготовка файлов…",
         "no_matching_transfers": "Нет передач, соответствующих фильтру",
         "clear_done": "Очистить готовые",
-        "clear_finished": "Очистить всё"
+        "clear_finished": "Очистить всё",
+
+        // MARK: - Finder Mount (WebDAV Loopback)
+        "mount_in_finder": "Смонтировать в Finder",
+        "mounting_in_finder": "Монтирование…",
+        "open_mounted_folder": "Открыть в Finder",
+        "unmount_from_finder": "Отмонтировать от Finder",
+        "mounted_in_finder": "Смонтировано в Finder",
+        "finder_mount_success": "Смонтировано в Finder",
+        "finder_mount_failed": "Ошибка монтирования в Finder",
+        "finder_unmounted": "Отмонтировано от Finder"
     ]
 }

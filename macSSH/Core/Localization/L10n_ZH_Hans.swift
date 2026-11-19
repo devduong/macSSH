@@ -249,6 +249,16 @@ public enum L10n_ZH_Hans {
         "preparing_transfers": "正在准备文件…",
         "no_matching_transfers": "没有符合筛选条件的传输",
         "clear_done": "清除已完成",
-        "clear_finished": "全部清除"
+        "clear_finished": "全部清除",
+
+        // MARK: - Finder Mount (WebDAV Loopback)
+        "mount_in_finder": "挂载到 Finder",
+        "mounting_in_finder": "正在挂载…",
+        "open_mounted_folder": "在 Finder 中打开",
+        "unmount_from_finder": "从 Finder 卸载",
+        "mounted_in_finder": "已挂载到 Finder",
+        "finder_mount_success": "已挂载到 Finder",
+        "finder_mount_failed": "Finder 挂载失败",
+        "finder_unmounted": "已从 Finder 卸载"
     ]
 }

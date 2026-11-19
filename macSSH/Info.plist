@@ -6,6 +6,8 @@
     <string>macSSH</string>
     <key>CFBundleDisplayName</key>
     <string>macSSH</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>macSSH mounts remote FTP and SFTP servers so you can access them directly as folders in Finder.</string>
     <key>UTExportedTypeDeclarations</key>
     <array>
         <dict>

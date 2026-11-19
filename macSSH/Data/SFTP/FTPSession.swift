@@ -7,6 +7,74 @@
 
 import Foundation
 
+nonisolated private final class FTPByteCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    func result() -> Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return data
+    }
+}
+
+nonisolated private final class FTPStreamErrState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var errData = Data()
+    private var stdoutClosed = false
+    private var stderrClosed = false
+    private var exited = false
+    private var stoppedEarly = false
+
+    func appendErr(_ d: Data) {
+        lock.lock()
+        errData.append(d)
+        lock.unlock()
+    }
+
+    func markStdoutClosed() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !stdoutClosed else { return false }
+        stdoutClosed = true
+        return true
+    }
+
+    func markStderrClosed() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !stderrClosed else { return false }
+        stderrClosed = true
+        return true
+    }
+
+    func markExited() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !exited else { return false }
+        exited = true
+        return true
+    }
+
+    func markStoppedEarly() {
+        lock.lock()
+        stoppedEarly = true
+        lock.unlock()
+    }
+
+    func snapshot() -> (Data, Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (errData, stoppedEarly)
+    }
+}
+
 nonisolated private final class CurlProcessBox: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
@@ -437,6 +505,185 @@ actor FTPSession: SFTPSessionProtocol {
             progress?(finalSize)
         }
         logInfo("Downloaded FTP file: \(normalized) -> \(localURL.path)", category: .sftp)
+    }
+
+    func downloadRange(from remotePath: String, offset: Int64, length: Int64) async throws -> Data {
+        guard length > 0 else { return Data() }
+        let collector = FTPByteCollector()
+        try await streamFile(from: remotePath, offset: offset, length: length) { chunk in
+            collector.append(chunk)
+        }
+        return collector.result()
+    }
+
+    func streamFile(
+        from remotePath: String,
+        offset: Int64,
+        length: Int64?,
+        onChunk: @escaping @Sendable (Data) async throws -> Void
+    ) async throws {
+        guard isConnected else { throw AppError.notConnected }
+        let normalized = resolveNormalizedPath(remotePath)
+        let urlString = buildFTPURL(for: normalized, isDirectory: false)
+        let escapedUser = username.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedPass = password.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let configLine = "user = \"\(escapedUser):\(escapedPass)\"\n"
+        let ftps = useFTPS
+
+        var fullArgs = ["--config", "-", "--silent", "--show-error", "--fail", "--connect-timeout", "15"]
+        if ftps {
+            fullArgs.append(contentsOf: ["--ssl-reqd", "-k"])
+        }
+        if offset > 0 || length != nil {
+            let start = max(0, offset)
+            if let length, length > 0 {
+                let end = start + length - 1
+                fullArgs.append(contentsOf: ["--range", "\(start)-\(end)"])
+            } else {
+                fullArgs.append(contentsOf: ["--range", "\(start)-"])
+            }
+        }
+        fullArgs.append(urlString)
+
+        let box = CurlProcessBox()
+
+        let stream = AsyncThrowingStream<Data, Error> { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                if box.isCancelled {
+                    continuation.finish(throwing: CancellationError())
+                    return
+                }
+
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
+                process.arguments = fullArgs
+
+                let stdinPipe = Pipe()
+                let stdoutPipe = Pipe()
+                let stderrPipe = Pipe()
+                process.standardInput = stdinPipe
+                process.standardOutput = stdoutPipe
+                process.standardError = stderrPipe
+
+                guard box.setProcess(process) else {
+                    continuation.finish(throwing: CancellationError())
+                    return
+                }
+
+                let state = FTPStreamErrState()
+                let ioGroup = DispatchGroup()
+                let stdoutHandle = stdoutPipe.fileHandleForReading
+                let stderrHandle = stderrPipe.fileHandleForReading
+
+                continuation.onTermination = { _ in
+                    state.markStoppedEarly()
+                    box.cancel()
+                }
+
+                ioGroup.enter()
+                stdoutHandle.readabilityHandler = { handle in
+                    let chunk = handle.availableData
+                    if chunk.isEmpty {
+                        handle.readabilityHandler = nil
+                        try? handle.close()
+                        if state.markStdoutClosed() {
+                            ioGroup.leave()
+                        }
+                    } else {
+                        continuation.yield(chunk)
+                    }
+                }
+
+                ioGroup.enter()
+                stderrHandle.readabilityHandler = { handle in
+                    let chunk = handle.availableData
+                    if chunk.isEmpty {
+                        handle.readabilityHandler = nil
+                        try? handle.close()
+                        if state.markStderrClosed() {
+                            ioGroup.leave()
+                        }
+                    } else {
+                        state.appendErr(chunk)
+                    }
+                }
+
+                ioGroup.enter()
+                process.terminationHandler = { _ in
+                    if state.markExited() {
+                        ioGroup.leave()
+                    }
+                }
+
+                do {
+                    try process.run()
+                    if let configData = configLine.data(using: .utf8) {
+                        try? stdinPipe.fileHandleForWriting.write(contentsOf: configData)
+                    }
+                    try? stdinPipe.fileHandleForWriting.close()
+
+                    ioGroup.notify(queue: DispatchQueue.global(qos: .utility)) {
+                        let (errData, stoppedEarly) = state.snapshot()
+                        if stoppedEarly || box.isCancelled {
+                            continuation.finish()
+                            return
+                        }
+                        if process.terminationStatus == 0 {
+                            continuation.finish()
+                        } else {
+                            let rawErr = String(data: errData, encoding: .utf8) ?? ""
+                            let errStr = Self.extractCurlErrorMessage(from: rawErr)
+                            let exitCode = process.terminationStatus
+                            if exitCode == 67 || errStr.lowercased().contains("530") {
+                                continuation.finish(throwing: AppError.authenticationFailed)
+                            } else if exitCode == 28 || errStr.lowercased().contains("timed out") {
+                                continuation.finish(throwing: AppError.connectionTimeout)
+                            } else if exitCode == 9 || exitCode == 78 || errStr.lowercased().contains("550") {
+                                continuation.finish(throwing: AppError.fileNotFound)
+                            } else {
+                                continuation.finish(throwing: AppError.sftpOperationFailed(errStr.isEmpty ? "FTP stream failed (code \(exitCode))." : errStr))
+                            }
+                        }
+                    }
+                } catch {
+                    stdoutHandle.readabilityHandler = nil
+                    stderrHandle.readabilityHandler = nil
+                    process.terminationHandler = nil
+                    try? stdoutHandle.close()
+                    try? stderrHandle.close()
+                    try? stdinPipe.fileHandleForWriting.close()
+                    continuation.finish(throwing: AppError.connectionFailed(error.localizedDescription))
+                }
+            }
+        }
+
+        var remaining = length
+        do {
+            for try await chunk in stream {
+                try Task.checkCancellation()
+                if let rem = remaining {
+                    if rem <= 0 {
+                        box.cancel()
+                        break
+                    }
+                    if Int64(chunk.count) >= rem {
+                        let slice = chunk.prefix(Int(rem))
+                        try await onChunk(Data(slice))
+                        remaining = 0
+                        box.cancel()
+                        break
+                    } else {
+                        try await onChunk(chunk)
+                        remaining = rem - Int64(chunk.count)
+                    }
+                } else {
+                    try await onChunk(chunk)
+                }
+            }
+        } catch {
+            box.cancel()
+            throw error
+        }
     }
 
     func uploadFile(from localURL: URL, to remotePath: String) async throws {

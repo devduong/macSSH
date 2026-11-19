@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FileBrowserView: View {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var mountManager = FinderMountManager.shared
     @Environment(\.openWindow) private var openWindow
 
     init(viewModel: FileBrowserViewModel) {
@@ -29,138 +30,8 @@ struct FileBrowserView: View {
         .navigationTitle(viewModel.currentPath == "/" ? viewModel.connection.name : (viewModel.currentPath as NSString).lastPathComponent)
         .navigationSubtitle(viewModel.isConnected ? viewModel.connection.connectionString : "Disconnected")
         .toolbar(id: "browserToolbar") {
-            // Navigation group
-            ToolbarItem(id: "back", placement: .navigation) {
-                Button {
-                    Task { await viewModel.goBack() }
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .disabled(!viewModel.canGoBack)
-                .help("Go Back")
-            }
-
-            ToolbarItem(id: "forward", placement: .navigation) {
-                Button {
-                    Task { await viewModel.goForward() }
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled(!viewModel.canGoForward)
-                .help("Go Forward")
-            }
-
-            // Primary actions
-            ToolbarItem(id: "newItem", placement: .primaryAction) {
-                Menu {
-                    Button {
-                        viewModel.requestNewFolder()
-                    } label: {
-                        Label("New Folder", systemImage: "folder.badge.plus")
-                    }
-
-                    Button {
-                        viewModel.requestNewFile()
-                    } label: {
-                        Label("New File", systemImage: "doc.badge.plus")
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("New")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                }
-                .help("New File or Folder")
-            }
-
-            ToolbarItem(id: "upload", placement: .primaryAction) {
-                Button {
-                    Task { await viewModel.uploadFiles() }
-                } label: {
-                    Label("Upload", systemImage: "square.and.arrow.up")
-                }
-                .help("Upload Files")
-            }
-
-            ToolbarItem(id: "delete", placement: .primaryAction) {
-                Button {
-                    viewModel.confirmDeleteSelected()
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-                .disabled(viewModel.selectedFiles.isEmpty)
-                .help("Delete Selected")
-            }
-
-            ToolbarItem(id: "spacer1", placement: .primaryAction) {
-                Spacer()
-            }
-
-            // Terminal menu (SFTP only)
-            ToolbarItem(id: "terminal", placement: .primaryAction) {
-                if viewModel.connection.connectionType == .sftp {
-                    Menu {
-                        Button {
-                            viewModel.openTerminal()
-                        } label: {
-                            Label("Open Built-in Terminal", systemImage: "terminal")
-                        }
-
-                        Button {
-                            TerminalLauncherService.openInMacOSTerminal(connection: viewModel.connection)
-                        } label: {
-                            Label("Open in macOS Terminal", systemImage: "terminal.fill")
-                        }
-                    } label: {
-                        Label("Terminal", systemImage: "terminal")
-                    }
-                    .disabled(!viewModel.isConnected)
-                    .help("Open Terminal options")
-                }
-            }
-
-            // Transfers
-            ToolbarItem(id: "transfers", placement: .primaryAction) {
-                TransfersToolbarButton(viewModel: viewModel)
-            }
-
-            // View options
-            ToolbarItem(id: "hiddenFiles", placement: .primaryAction) {
-                Toggle(isOn: $viewModel.showHiddenFiles) {
-                    Label(
-                        viewModel.showHiddenFiles ? "Hide Hidden Files" : "Show Hidden Files",
-                        systemImage: viewModel.showHiddenFiles ? "eye.fill" : "eye.slash"
-                    )
-                }
-                .help("Toggle Hidden Files")
-            }
-
-            ToolbarItem(id: "sort", placement: .primaryAction) {
-                Menu {
-                    ForEach(RemoteFile.SortCriteria.allCases, id: \.self) { criteria in
-                        Button {
-                            if viewModel.sortCriteria == criteria {
-                                viewModel.sortAscending.toggle()
-                            } else {
-                                viewModel.sortCriteria = criteria
-                                viewModel.sortAscending = true
-                            }
-                        } label: {
-                            HStack {
-                                Text(criteria.rawValue)
-                                if viewModel.sortCriteria == criteria {
-                                    Image(systemName: viewModel.sortAscending ? "chevron.up" : "chevron.down")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
-                }
-                .help("Sort Options")
-            }
+            FileBrowserLeadingToolbar(viewModel: viewModel)
+            FileBrowserTrailingToolbar(viewModel: viewModel, mountManager: mountManager)
         }
         .task {
             await viewModel.connect()
@@ -321,6 +192,211 @@ struct FileBrowserView: View {
 
     private func showFileInfo(_ file: RemoteFile) {
         viewModel.showFileInfo(file)
+    }
+}
+
+// MARK: - File Browser Toolbar Sections
+private struct FileBrowserLeadingToolbar: CustomizableToolbarContent {
+    @Bindable var viewModel: FileBrowserViewModel
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "back", placement: .navigation) {
+            Button {
+                Task { await viewModel.goBack() }
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .disabled(!viewModel.canGoBack)
+            .help("Go Back")
+        }
+
+        ToolbarItem(id: "forward", placement: .navigation) {
+            Button {
+                Task { await viewModel.goForward() }
+            } label: {
+                Image(systemName: "chevron.right")
+            }
+            .disabled(!viewModel.canGoForward)
+            .help("Go Forward")
+        }
+
+        ToolbarItem(id: "newItem", placement: .primaryAction) {
+            Menu {
+                Button {
+                    viewModel.requestNewFolder()
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+
+                Button {
+                    viewModel.requestNewFile()
+                } label: {
+                    Label("New File", systemImage: "doc.badge.plus")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("New")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            }
+            .help("New File or Folder")
+        }
+
+        ToolbarItem(id: "upload", placement: .primaryAction) {
+            Button {
+                Task { await viewModel.uploadFiles() }
+            } label: {
+                Label("Upload", systemImage: "square.and.arrow.up")
+            }
+            .help("Upload Files")
+        }
+
+        ToolbarItem(id: "delete", placement: .primaryAction) {
+            Button {
+                viewModel.confirmDeleteSelected()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .disabled(viewModel.selectedFiles.isEmpty)
+            .help("Delete Selected")
+        }
+
+        ToolbarItem(id: "spacer1", placement: .primaryAction) {
+            Spacer()
+        }
+    }
+}
+
+private struct FileBrowserTrailingToolbar: CustomizableToolbarContent {
+    @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject var mountManager: FinderMountManager
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "finderMount", placement: .primaryAction) {
+            if viewModel.connection.connectionType.supportsFinderMount {
+                FinderMountToolbarButton(viewModel: viewModel, mountManager: mountManager)
+            }
+        }
+
+        ToolbarItem(id: "terminal", placement: .primaryAction) {
+            if viewModel.connection.connectionType == .sftp {
+                Menu {
+                    Button {
+                        viewModel.openTerminal()
+                    } label: {
+                        Label("Open Built-in Terminal", systemImage: "terminal")
+                    }
+
+                    Button {
+                        TerminalLauncherService.openInMacOSTerminal(connection: viewModel.connection)
+                    } label: {
+                        Label("Open in macOS Terminal", systemImage: "terminal.fill")
+                    }
+                } label: {
+                    Label("Terminal", systemImage: "terminal")
+                }
+                .disabled(!viewModel.isConnected)
+                .help("Open Terminal options")
+            }
+        }
+
+        ToolbarItem(id: "transfers", placement: .primaryAction) {
+            TransfersToolbarButton(viewModel: viewModel)
+        }
+
+        ToolbarItem(id: "hiddenFiles", placement: .primaryAction) {
+            Toggle(isOn: $viewModel.showHiddenFiles) {
+                Label(
+                    viewModel.showHiddenFiles ? "Hide Hidden Files" : "Show Hidden Files",
+                    systemImage: viewModel.showHiddenFiles ? "eye.fill" : "eye.slash"
+                )
+            }
+            .help("Toggle Hidden Files")
+        }
+
+        ToolbarItem(id: "sort", placement: .primaryAction) {
+            Menu {
+                ForEach(RemoteFile.SortCriteria.allCases, id: \.self) { criteria in
+                    Button {
+                        if viewModel.sortCriteria == criteria {
+                            viewModel.sortAscending.toggle()
+                        } else {
+                            viewModel.sortCriteria = criteria
+                            viewModel.sortAscending = true
+                        }
+                    } label: {
+                        HStack {
+                            Text(criteria.rawValue)
+                            if viewModel.sortCriteria == criteria {
+                                Image(systemName: viewModel.sortAscending ? "chevron.up" : "chevron.down")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+            }
+            .help("Sort Options")
+        }
+    }
+}
+
+// MARK: - Finder Mount Toolbar Button
+private struct FinderMountToolbarButton: View {
+    @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject var mountManager: FinderMountManager
+
+    private var isMounted: Bool {
+        mountManager.isMounted(viewModel.connection.id)
+    }
+
+    private var isBusy: Bool {
+        mountManager.isMounting(viewModel.connection.id) || mountManager.isUnmounting(viewModel.connection.id)
+    }
+
+    var body: some View {
+        if isMounted {
+            Menu {
+                Button {
+                    FinderMountManager.shared.openInFinder(connectionId: viewModel.connection.id)
+                } label: {
+                    Label(L10n.tr("open_mounted_folder"), systemImage: "macwindow")
+                }
+
+                Button {
+                    Task { await viewModel.unmountFromFinder() }
+                } label: {
+                    Label(L10n.tr("unmount_from_finder"), systemImage: "eject.fill")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "externaldrive.fill")
+                        .foregroundStyle(.teal)
+                    Text("Finder")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            }
+            .help(L10n.tr("mounted_in_finder"))
+        } else {
+            Button {
+                Task { await viewModel.mountInFinder() }
+            } label: {
+                HStack(spacing: 4) {
+                    if isBusy {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "externaldrive.badge.plus")
+                    }
+                    Text("Finder")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            }
+            .disabled(isBusy)
+            .help(L10n.tr("mount_in_finder"))
+        }
     }
 }
 

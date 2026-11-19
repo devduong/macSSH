@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 struct ConnectionListColumn: View {
     @Bindable var viewModel: ConnectionListViewModel
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
+    @ObservedObject private var mountManager = FinderMountManager.shared
     @ObservedObject private var windowManager = WindowManager.shared
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var appearanceManager = AppearanceManager.shared
@@ -230,6 +231,12 @@ struct ConnectionListColumn: View {
                 },
                 onFileBrowser: {
                     viewModel.requestFileBrowser(for: connection)
+                },
+                onMountInFinder: {
+                    viewModel.requestFinderMount(for: connection)
+                },
+                onUnmountFromFinder: {
+                    viewModel.unmountFromFinder(connection)
                 }
             )
             .contentShape(Rectangle())
@@ -286,6 +293,28 @@ struct ConnectionListColumn: View {
                     viewModel.requestFileBrowser(for: connection)
                 } label: {
                     Label(loc("Open File Browser", "Mở trình duyệt tệp"), systemImage: "folder")
+                }
+
+                if connection.connectionType.supportsFinderMount {
+                    if mountManager.isMounted(connection.id) {
+                        Button {
+                            FinderMountManager.shared.openInFinder(connectionId: connection.id)
+                        } label: {
+                            Label(L10n.tr("open_mounted_folder"), systemImage: "externaldrive.fill")
+                        }
+
+                        Button {
+                            viewModel.unmountFromFinder(connection)
+                        } label: {
+                            Label(L10n.tr("unmount_from_finder"), systemImage: "eject.fill")
+                        }
+                    } else {
+                        Button {
+                            viewModel.requestFinderMount(for: connection)
+                        } label: {
+                            Label(L10n.tr("mount_in_finder"), systemImage: "externaldrive.badge.plus")
+                        }
+                    }
                 }
 
                 Button {

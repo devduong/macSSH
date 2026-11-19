@@ -16,21 +16,34 @@ struct ConnectionRowView: View {
     var onSavePasswordToggle: (() -> Void)? = nil
     var onTerminal: (() -> Void)? = nil
     var onFileBrowser: (() -> Void)? = nil
+    var onMountInFinder: (() -> Void)? = nil
+    var onUnmountFromFinder: (() -> Void)? = nil
 
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
+    @ObservedObject private var mountManager = FinderMountManager.shared
     @State private var isHovered = false
     @State private var isPulsing = false
 
+    private var isMountedInFinder: Bool {
+        mountManager.isMounted(connection.id)
+    }
+
+    private var isMountingInFinder: Bool {
+        mountManager.isMounting(connection.id) || mountManager.isUnmounting(connection.id)
+    }
+
     /// Whether this active connection is affected by internet outage
     private var isInternetDown: Bool {
-        isActive && !sessionManager.isInternetAvailable
+        (isActive || isMountedInFinder) && !sessionManager.isInternetAvailable
     }
 
     private var iconColor: Color {
-        if isConnecting { return .orange }
+        if isConnecting || isMountingInFinder { return .orange }
         if isInternetDown { return .red }
-        return isActive ? .green : connection.connectionType.accentColor
+        if isActive { return .green }
+        if isMountedInFinder { return .teal }
+        return connection.connectionType.accentColor
     }
 
     private var protocolBadgeColor: Color {
@@ -52,7 +65,7 @@ struct ConnectionRowView: View {
                         .frame(width: 34, height: 34)
                         .background(iconColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
 
-                    if isConnecting {
+                    if isConnecting || isMountingInFinder {
                         ProgressView()
                             .controlSize(.mini)
                             .frame(width: 10, height: 10)
@@ -60,7 +73,7 @@ struct ConnectionRowView: View {
                             .offset(x: 2, y: 2)
                     } else {
                         Circle()
-                            .fill(isInternetDown ? Color.red : (isActive ? Color.green : Color.secondary.opacity(0.35)))
+                            .fill(isInternetDown ? Color.red : (isActive ? Color.green : (isMountedInFinder ? Color.teal : Color.secondary.opacity(0.35))))
                             .frame(width: 9, height: 9)
                             .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 1.5))
                             .opacity(isInternetDown && isPulsing ? 0.4 : 1.0)
@@ -90,6 +103,42 @@ struct ConnectionRowView: View {
                             }
                             .buttonStyle(.plain)
                             .help(loc("Open File Browser", "Mở trình duyệt tệp"))
+
+                            // Finder Mount button (FTP & SFTP via local WebDAV loopback)
+                            if connection.connectionType.supportsFinderMount {
+                                Button(action: { onMountInFinder?() }) {
+                                    Group {
+                                        if isMountingInFinder {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                        } else {
+                                            Image(systemName: isMountedInFinder ? "externaldrive.fill" : "externaldrive")
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(isMountedInFinder ? Color.teal : Color.secondary)
+                                        }
+                                    }
+                                    .frame(width: 24, height: 20)
+                                    .background(
+                                        isMountedInFinder ? AnyShapeStyle(Color.teal.opacity(0.16)) : AnyShapeStyle(.quaternary),
+                                        in: RoundedRectangle(cornerRadius: 5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isMountingInFinder)
+                                .help(isMountedInFinder ? L10n.tr("open_mounted_folder") : L10n.tr("mount_in_finder"))
+
+                                if isMountedInFinder {
+                                    Button(action: { onUnmountFromFinder?() }) {
+                                        Image(systemName: "eject.fill")
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundStyle(.orange)
+                                            .frame(width: 22, height: 20)
+                                            .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(L10n.tr("unmount_from_finder"))
+                                }
+                            }
 
                             // Terminal button (SFTP/SSH only)
                             if connection.connectionType.supportsTerminal {
@@ -193,6 +242,15 @@ struct ConnectionRowView: View {
                             }
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Color.green.opacity(0.12), in: Capsule())
+                        } else if isMountedInFinder {
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.teal).frame(width: 5, height: 5)
+                                Text("Finder")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.teal)
+                            }
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.teal.opacity(0.12), in: Capsule())
                         } else {
                             Text(connection.connectionType.badgeName)
                                 .font(.system(size: 9, weight: .semibold))

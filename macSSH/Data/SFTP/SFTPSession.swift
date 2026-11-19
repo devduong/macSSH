@@ -11,6 +11,23 @@ import NIO
 import NIOCore
 import NIOFoundationCompat
 
+nonisolated private final class SFTPByteCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    func result() -> Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return data
+    }
+}
+
 actor SFTPSession: SFTPSessionProtocol {
     private var client: SSHClient?
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
@@ -461,6 +478,59 @@ actor SFTPSession: SFTPSessionProtocol {
             logInfo("Downloaded: \(remotePath) to \(localURL.path)", category: .sftp)
         } catch {
             throw parseSFTPError(error, operation: "download")
+        }
+    }
+
+    func downloadRange(from remotePath: String, offset: Int64, length: Int64) async throws -> Data {
+        guard length > 0 else { return Data() }
+        let collector = SFTPByteCollector()
+        try await streamFile(from: remotePath, offset: offset, length: length) { chunk in
+            collector.append(chunk)
+        }
+        return collector.result()
+    }
+
+    func streamFile(
+        from remotePath: String,
+        offset: Int64,
+        length: Int64?,
+        onChunk: @escaping @Sendable (Data) async throws -> Void
+    ) async throws {
+        guard let client = client else {
+            throw AppError.notConnected
+        }
+
+        do {
+            try await client.withSFTP { sftp in
+                let attributes = try await sftp.getAttributes(at: remotePath)
+                let fileSize = attributes.size ?? 0
+                let startOffset = UInt64(max(0, offset))
+                guard startOffset < fileSize else { return }
+
+                let maxReadable = fileSize - startOffset
+                let totalToRead = length.map { min(maxReadable, UInt64(max(0, $0))) } ?? maxReadable
+                guard totalToRead > 0 else { return }
+
+                let chunkSize: UInt64 = 256 * 1024
+                try await sftp.withFile(filePath: remotePath, flags: .read) { file in
+                    var currentOffset = startOffset
+                    var remaining = totalToRead
+                    while remaining > 0 {
+                        try Task.checkCancellation()
+                        let bytesToRead = min(chunkSize, remaining)
+                        let buffer = try await file.read(from: currentOffset, length: UInt32(bytesToRead))
+                        let data = Data(buffer: buffer)
+                        if data.isEmpty { break }
+                        try await onChunk(data)
+                        currentOffset += UInt64(data.count)
+                        remaining -= min(remaining, UInt64(data.count))
+                    }
+                }
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw parseSFTPError(error, operation: "stream")
         }
     }
 

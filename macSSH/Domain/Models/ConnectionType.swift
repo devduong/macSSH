@@ -104,4 +104,8 @@ enum ConnectionType: String, Codable, Sendable, CaseIterable {
     var supportsPrivateKey: Bool {
         self == .sftp
     }
+
+    var supportsFinderMount: Bool {
+        self == .ftp || self == .sftp
+    }
 }

@@ -53,9 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Apply persisted Light/Dark/System appearance
         AppearanceManager.shared.applyAppearance()
 
-        // Clean up any leftover orphan ssh/socks processes and scripts from previous sessions/crashes
+        // Clean up any leftover orphan ssh/socks processes, scripts, and stale Finder mounts from previous sessions/crashes
         NativeProcessRegistry.shared.cleanupOrphanProcesses()
         TerminalLauncherService.cleanupOldScripts()
+        FinderMountManager.cleanupOrphanMounts()
 
         // Auto-load the last opened config file if it exists
         Task { @MainActor in
@@ -151,13 +152,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func performTerminationCleanup() async {
-        logInfo("Application terminating, closing all active SSH connections and SOCKS tunnels...", category: .app)
+        logInfo("Application terminating, unmounting Finder volumes and closing all active SSH connections and SOCKS tunnels...", category: .app)
         TerminalLauncherService.cleanupOldScripts()
+        await FinderMountManager.shared.unmountAll()
         await ConnectionSessionManager.shared.disconnectAll()
         NativeProcessRegistry.shared.terminateAll()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        FinderMountManager.emergencyUnmountAllSync()
         NativeProcessRegistry.shared.terminateAll()
     }
 }
@@ -389,6 +392,21 @@ private struct AppCommands: Commands {
                 connectionActions?.onOpenFileBrowser()
             }
             .disabled(connectionActions?.selectedConnection == nil)
+
+            if connectionActions?.isMountedInFinder == true {
+                Button(L10n.tr("open_mounted_folder")) {
+                    connectionActions?.onOpenMountedFolder()
+                }
+
+                Button(L10n.tr("unmount_from_finder")) {
+                    connectionActions?.onUnmountFromFinder()
+                }
+            } else {
+                Button(L10n.tr("mount_in_finder")) {
+                    connectionActions?.onMountInFinder()
+                }
+                .disabled(connectionActions?.selectedConnection?.connectionType.supportsFinderMount != true)
+            }
 
             Button(L10n.tr("open_terminal")) {
                 connectionActions?.onOpenTerminal()

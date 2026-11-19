@@ -249,6 +249,16 @@ public enum L10n_EN {
         "preparing_transfers": "Preparing files…",
         "no_matching_transfers": "No transfers match the selected filter",
         "clear_done": "Clear Done",
-        "clear_finished": "Clear All"
+        "clear_finished": "Clear All",
+
+        // MARK: - Finder Mount (WebDAV Loopback)
+        "mount_in_finder": "Mount in Finder",
+        "mounting_in_finder": "Mounting…",
+        "open_mounted_folder": "Open in Finder",
+        "unmount_from_finder": "Unmount from Finder",
+        "mounted_in_finder": "Mounted in Finder",
+        "finder_mount_success": "Mounted in Finder",
+        "finder_mount_failed": "Finder Mount Failed",
+        "finder_unmounted": "Unmounted from Finder"
     ]
 }

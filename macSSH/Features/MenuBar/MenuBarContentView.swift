@@ -10,6 +10,7 @@ import SwiftData
 
 struct MenuBarContentView: View {
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
+    @ObservedObject private var mountManager = FinderMountManager.shared
     @ObservedObject private var windowManager = WindowManager.shared
     @ObservedObject private var l10n = LocalizationManager.shared
     @Environment(\.openWindow) private var openWindow
@@ -59,6 +60,7 @@ struct MenuBarContentView: View {
 
                 ForEach(prioritizedConnections) { connection in
                     let isConnected = sessionManager.isConnected(connection.id)
+                    let isMounted = mountManager.isMounted(connection.id)
 
                     Menu {
                         // Info Header
@@ -97,6 +99,42 @@ struct MenuBarContentView: View {
                             Label(L10n.tr("open_file_browser"), systemImage: "folder")
                         }
 
+                        if connection.connectionType.supportsFinderMount {
+                            if isMounted {
+                                Button {
+                                    FinderMountManager.shared.openInFinder(connectionId: connection.id)
+                                } label: {
+                                    Label(L10n.tr("open_mounted_folder"), systemImage: "externaldrive.fill")
+                                }
+
+                                Button {
+                                    Task {
+                                        await FinderMountManager.shared.unmount(connectionId: connection.id)
+                                    }
+                                } label: {
+                                    Label(L10n.tr("unmount_from_finder"), systemImage: "eject.fill")
+                                }
+                            } else {
+                                Button {
+                                    Task {
+                                        let password = sessionManager.getCachedPassword(for: connection.id) ?? ""
+                                        do {
+                                            try await FinderMountManager.shared.mount(connection: connection, password: password)
+                                        } catch {
+                                            ToastManager.shared.show(
+                                                title: L10n.tr("finder_mount_failed"),
+                                                message: AppError.from(error).localizedDescription,
+                                                type: .error,
+                                                duration: 5.0
+                                            )
+                                        }
+                                    }
+                                } label: {
+                                    Label(L10n.tr("mount_in_finder"), systemImage: "externaldrive.badge.plus")
+                                }
+                            }
+                        }
+
                         Button {
                             openTerminal(for: connection)
                         } label: {
@@ -112,8 +150,10 @@ struct MenuBarContentView: View {
                         .disabled(connection.connectionType != .sftp)
                     } label: {
                         let internetDown = !NetworkMonitor.shared.isConnected
-                        let statusIcon = isConnected ? (internetDown ? "🔴" : "🟢") : "⚪️"
-                        Text(verbatim: "\(statusIcon) \(connection.name) (\(connection.host))\(connection.socksProxyEnabled ? " [Proxy :\(String(connection.socksProxyPort))]" : "")")
+                        let statusIcon = (isConnected || isMounted) ? (internetDown ? "🔴" : "🟢") : "⚪️"
+                        let mountBadge = isMounted ? " [Finder]" : ""
+                        let proxyBadge = connection.socksProxyEnabled ? " [Proxy :\(String(connection.socksProxyPort))]" : ""
+                        Text(verbatim: "\(statusIcon) \(connection.name) (\(connection.host))\(mountBadge)\(proxyBadge)")
                     }
                 }
             }

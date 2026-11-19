@@ -249,6 +249,16 @@ public enum L10n_VI {
         "preparing_transfers": "Đang chuẩn bị tệp…",
         "no_matching_transfers": "Không có tệp nào khớp bộ lọc",
         "clear_done": "Xóa xong",
-        "clear_finished": "Xóa tất cả"
+        "clear_finished": "Xóa tất cả",
+
+        // MARK: - Finder Mount (WebDAV Loopback)
+        "mount_in_finder": "Mount vào Finder",
+        "mounting_in_finder": "Đang mount…",
+        "open_mounted_folder": "Mở trong Finder",
+        "unmount_from_finder": "Gỡ khỏi Finder",
+        "mounted_in_finder": "Đã mount vào Finder",
+        "finder_mount_success": "Đã mount vào Finder",
+        "finder_mount_failed": "Mount vào Finder thất bại",
+        "finder_unmounted": "Đã gỡ khỏi Finder"
     ]
 }

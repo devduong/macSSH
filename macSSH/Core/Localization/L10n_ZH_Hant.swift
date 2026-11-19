@@ -249,6 +249,16 @@ public enum L10n_ZH_Hant {
         "preparing_transfers": "正在準備檔案…",
         "no_matching_transfers": "沒有符合篩選條件的傳輸",
         "clear_done": "清除已完成",
-        "clear_finished": "全部清除"
+        "clear_finished": "全部清除",
+
+        // MARK: - Finder Mount (WebDAV Loopback)
+        "mount_in_finder": "掛載到 Finder",
+        "mounting_in_finder": "正在掛載…",
+        "open_mounted_folder": "在 Finder 中開啟",
+        "unmount_from_finder": "從 Finder 卸載",
+        "mounted_in_finder": "已掛載到 Finder",
+        "finder_mount_success": "已掛載到 Finder",
+        "finder_mount_failed": "Finder 掛載失敗",
+        "finder_unmounted": "已從 Finder 卸載"
     ]
 }

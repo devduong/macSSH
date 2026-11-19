@@ -39,6 +39,7 @@ final class ConnectionListViewModel {
         case connectSession
         case fileBrowser
         case terminal
+        case finderMount
     }
     var passwordPromptTarget: PasswordPromptTarget = .connectSession
     var authErrorMessage: String? = nil
@@ -462,9 +463,78 @@ final class ConnectionListViewModel {
             openFileBrowser(for: connection, password: password)
         case .terminal:
             openTerminal(for: connection, password: password)
+        case .finderMount:
+            Task {
+                await performFinderMount(connection: connection, password: password)
+            }
         }
 
         connectionToConnect = nil
+    }
+
+    func requestFinderMount(for connection: Connection) {
+        guard connection.connectionType.supportsFinderMount else { return }
+
+        if FinderMountManager.shared.isMounted(connection.id) {
+            FinderMountManager.shared.openInFinder(connectionId: connection.id)
+            return
+        }
+
+        logInfo("Finder mount requested for: \(connection.name)", category: .ui)
+
+        Task { @MainActor in
+            let allowed = await AppLockManager.shared.authenticateForConnection()
+            guard allowed else {
+                logInfo("Finder mount cancelled: biometric auth denied", category: .auth)
+                return
+            }
+
+            let isAnonymousOrGuest = connection.connectionType != .sftp &&
+                ["anonymous", "guest", ""].contains(connection.username.lowercased())
+
+            if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
+                await performFinderMount(connection: connection, password: savedPassword)
+            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+                await performFinderMount(connection: connection, password: "")
+            } else {
+                connectionToConnect = connection
+                passwordPromptTarget = .finderMount
+                isShowingPasswordPrompt = true
+            }
+        }
+    }
+
+    func unmountFromFinder(_ connection: Connection) {
+        Task { @MainActor in
+            await FinderMountManager.shared.unmount(connectionId: connection.id)
+        }
+    }
+
+    private func performFinderMount(connection: Connection, password: String) async {
+        do {
+            try await FinderMountManager.shared.mount(connection: connection, password: password)
+        } catch {
+            logError("Finder mount failed for '\(connection.name)': \(error)", category: .network)
+            let appError = AppError.from(error)
+            if case .authenticationFailed = appError {
+                ConnectionSessionManager.shared.clearPassword(for: connection.id)
+                connectionToConnect = connection
+                passwordPromptTarget = .finderMount
+                authErrorMessage = loc(
+                    "Authentication failed. Please check your password and try again.",
+                    "Xác thực thất bại. Vui lòng kiểm tra lại mật khẩu và thử lại."
+                )
+                isShowingPasswordPrompt = true
+            } else {
+                ToastManager.shared.show(
+                    title: L10n.tr("finder_mount_failed"),
+                    message: appError.localizedDescription,
+                    type: .error,
+                    duration: 5.0
+                )
+                self.error = appError
+            }
+        }
     }
 
     func cancelConnect() {

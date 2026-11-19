@@ -2149,6 +2149,31 @@ final class FileBrowserViewModel {
         logInfo("Opening terminal from file browser", category: .ui)
     }
 
+    func mountInFinder() async {
+        guard connection.connectionType.supportsFinderMount else { return }
+        if FinderMountManager.shared.isMounted(connection.id) {
+            FinderMountManager.shared.openInFinder(connectionId: connection.id)
+            return
+        }
+
+        addLog("Mounting \(connection.connectionType.badgeName) volume in Finder…", level: .info)
+        do {
+            try await FinderMountManager.shared.mount(connection: connection, password: password)
+            if let info = FinderMountManager.shared.mountInfo(for: connection.id) {
+                addLog("Mounted in Finder at \(info.mountPointURL.path)", level: .success)
+            }
+        } catch {
+            let appError = AppError.from(error)
+            addLog("Finder mount failed: \(appError.localizedDescription)", level: .error)
+            self.error = appError
+        }
+    }
+
+    func unmountFromFinder() async {
+        await FinderMountManager.shared.unmount(connectionId: connection.id)
+        addLog("Unmounted Finder volume", level: .info)
+    }
+
     func clearError() {
         error = nil
     }

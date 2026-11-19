@@ -10,9 +10,13 @@ import SwiftUI
 struct ConnectionMenuActions {
     let selectedConnection: Connection?
     let isConnected: Bool
+    let isMountedInFinder: Bool
     let onConnect: () -> Void
     let onDisconnect: () -> Void
     let onOpenFileBrowser: () -> Void
+    let onMountInFinder: () -> Void
+    let onOpenMountedFolder: () -> Void
+    let onUnmountFromFinder: () -> Void
     let onOpenTerminal: () -> Void
     let onOpenMacOSTerminal: () -> Void
     let onEdit: () -> Void
@@ -34,6 +38,7 @@ extension FocusedValues {
 struct ConnectionListView: View {
     @Bindable var viewModel: ConnectionListViewModel
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
+    @ObservedObject private var mountManager = FinderMountManager.shared
     @Environment(\.openWindow) private var openWindow
     @State private var newFolderName = ""
     @State private var isShowingAboutSheet = false
@@ -233,9 +238,11 @@ struct ConnectionListView: View {
     private var currentConnectionMenuActions: ConnectionMenuActions {
         let selected = viewModel.selectedConnection
         let isConnected = selected.map { sessionManager.isConnected($0.id) } ?? false
+        let isMounted = selected.map { mountManager.isMounted($0.id) } ?? false
         return ConnectionMenuActions(
             selectedConnection: selected,
             isConnected: isConnected,
+            isMountedInFinder: isMounted,
             onConnect: {
                 if let selected { viewModel.connectToServer(selected) }
             },
@@ -244,6 +251,15 @@ struct ConnectionListView: View {
             },
             onOpenFileBrowser: {
                 if let selected { viewModel.requestFileBrowser(for: selected) }
+            },
+            onMountInFinder: {
+                if let selected { viewModel.requestFinderMount(for: selected) }
+            },
+            onOpenMountedFolder: {
+                if let selected { FinderMountManager.shared.openInFinder(connectionId: selected.id) }
+            },
+            onUnmountFromFinder: {
+                if let selected { viewModel.unmountFromFinder(selected) }
             },
             onOpenTerminal: {
                 if let selected { viewModel.requestTerminal(for: selected) }
