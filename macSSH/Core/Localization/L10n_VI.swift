@@ -278,6 +278,30 @@ public enum L10n_VI {
         "auto_save_password_hint_title": "Nên bật lưu mật khẩu",
         "auto_save_password_hint_msg": "Hãy bật 'Đã lưu pass' và lưu file cấu hình (⌘S) để \"%@\" tự động chạy khi mở lại ứng dụng.",
         "auto_startup_missing_password_title": "Bỏ qua tự động khởi chạy",
-        "auto_startup_missing_password": "Chưa có mật khẩu đã lưu cho: %@"
+        "auto_startup_missing_password": "Chưa có mật khẩu đã lưu cho: %@",
+
+        // MARK: - Software Update Checker
+        "check_for_updates": "Kiểm tra cập nhật…",
+        "checking_for_updates": "Đang kiểm tra cập nhật…",
+        "update_available_title": "Cập nhật phần mềm",
+        "update_available_headline": "Đã có phiên bản macSSH mới!",
+        "update_version_summary": "macSSH %@ đã sẵn sàng (bạn đang dùng %@).",
+        "release_notes": "Nội dung thay đổi",
+        "no_release_notes": "Không có mô tả chi tiết.",
+        "download_update": "Tải bản cập nhật",
+        "downloading_update": "Đang tải bản cập nhật…",
+        "skip_this_version": "Bỏ qua phiên bản này",
+        "never_remind_again": "Không bao giờ nhắc lại",
+        "remind_me_later": "Để sau",
+        "view_on_github": "Xem trên GitHub",
+        "up_to_date_title": "Bạn đang dùng bản mới nhất",
+        "up_to_date_message": "macSSH %@ hiện là phiên bản ổn định mới nhất.",
+        "update_check_failed": "Kiểm tra cập nhật thất bại",
+        "update_download_failed": "Tải bản cập nhật thất bại",
+        "update_dmg_ready_title": "Đã tải xong bản cập nhật",
+        "update_dmg_ready_msg": "Đã lưu %@ vào thư mục Downloads. Kéo macSSH vào Applications để hoàn tất cập nhật.",
+        "skipped_version_label": "Đã bỏ qua phiên bản: v%@",
+        "reset_skipped_version": "Đặt lại",
+        "open_release_page": "Mở trang phát hành"
     ]
 }

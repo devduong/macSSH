@@ -31,6 +31,7 @@ struct SettingsView: View {
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var appearanceManager = AppearanceManager.shared
     @ObservedObject private var ftpSettings = FTPTransferSettings.shared
+    @State private var updateService = UpdateService.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,7 +77,7 @@ struct SettingsView: View {
             .padding(.vertical, 10)
             .background(.bar)
         }
-        .frame(width: 520, height: 430)
+        .frame(width: 520, height: 465)
         .confirmationDialog(
             loc("Create New Configuration?", "Tạo file cấu hình mới?"),
             isPresented: $showNewConfirmation,
@@ -153,8 +154,60 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
 
-        Section(loc("Updates & Startup", "Cập nhật & Khởi động")) {
-            Toggle(loc("Automatically check for updates", "Tự động kiểm tra bản cập nhật"), isOn: $autoCheckUpdates)
+        Section(L10n.tr("updates_startup")) {
+            Toggle(L10n.tr("auto_check_updates"), isOn: $autoCheckUpdates)
+
+            HStack(spacing: 10) {
+                Button {
+                    Task {
+                        await updateService.checkForUpdates(manual: true)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if updateService.isChecking {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(updateService.isChecking ? L10n.tr("checking_for_updates") : L10n.tr("check_for_updates"))
+                    }
+                }
+                .disabled(updateService.isChecking)
+
+                Spacer()
+
+                Text("v\(AppVersion.version) (\(AppVersion.buildNumber))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            if let msg = updateService.statusMessage {
+                HStack(spacing: 6) {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(updateService.isStatusError ? .red : .secondary)
+                    if updateService.availableUpdate != nil {
+                        Button(L10n.tr("download_update")) {
+                            updateService.showAvailableUpdatePrompt()
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                    }
+                }
+            }
+
+            if let skipped = updateService.skippedVersion, !skipped.isEmpty {
+                HStack {
+                    Text(L10n.tr("skipped_version_label", skipped))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L10n.tr("reset_skipped_version")) {
+                        updateService.resetSkippedVersion()
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                }
+            }
         }
     }
 

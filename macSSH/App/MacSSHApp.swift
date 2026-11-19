@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 !$0.title.contains("Info") &&
                 !($0.identifier?.rawValue.contains(WindowID.about) == true) &&
                 !($0.identifier?.rawValue.contains(WindowID.donate) == true) &&
+                !($0.identifier?.rawValue.contains(WindowID.update) == true) &&
                 !$0.title.contains("Settings") &&
                 !$0.className.contains("Settings")
             }) {
@@ -62,6 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await FinderMountManager.cleanupOrphanMountsAndWait()
             await ConfigurationService.shared.autoLoadLastFileIfNeeded()
             await StartupAutomationService.shared.runOnLaunchIfUnlocked()
+        }
+
+        // Check GitHub Releases (stable numeric versions only) if auto-check is enabled
+        Task { @MainActor in
+            await UpdateService.shared.runLaunchCheckIfNeeded()
         }
 
         // Monitor window close notifications to hide Dock icon when no regular windows are open
@@ -280,6 +286,13 @@ private struct AppCommands: Commands {
             Button(L10n.tr("about")) {
                 ensureRegularActivation()
                 openWindow(id: WindowID.about)
+            }
+
+            Button(L10n.tr("check_for_updates")) {
+                ensureRegularActivation()
+                Task { @MainActor in
+                    await UpdateService.shared.checkForUpdates(manual: true)
+                }
             }
 
             Button(L10n.tr("donate")) {

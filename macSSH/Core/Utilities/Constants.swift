@@ -26,6 +26,7 @@ enum WindowID {
     static let terminal = "terminal"
     static let about = "about"
     static let donate = "donate"
+    static let update = "update-window"
 }
 
 // MARK: - Window Sizes

@@ -278,6 +278,30 @@ public enum L10n_RU {
         "auto_save_password_hint_title": "Рекомендуется сохранить пароль",
         "auto_save_password_hint_msg": "Включите «Saved» и сохраните конфигурацию (⌘S), чтобы «%@» запускался автоматически.",
         "auto_startup_missing_password_title": "Автозапуск пропущен",
-        "auto_startup_missing_password": "Нет сохранённого пароля для: %@"
+        "auto_startup_missing_password": "Нет сохранённого пароля для: %@",
+
+        // MARK: - Software Update Checker
+        "check_for_updates": "Проверить обновления…",
+        "checking_for_updates": "Проверка обновлений…",
+        "update_available_title": "Обновление ПО",
+        "update_available_headline": "Доступна новая версия macSSH!",
+        "update_version_summary": "Доступна версия macSSH %@ (у вас установлена %@).",
+        "release_notes": "Список изменений",
+        "no_release_notes": "Описание изменений отсутствует.",
+        "download_update": "Скачать обновление",
+        "downloading_update": "Скачивание обновления…",
+        "skip_this_version": "Пропустить эту версию",
+        "never_remind_again": "Больше не напоминать",
+        "remind_me_later": "Позже",
+        "view_on_github": "Открыть на GitHub",
+        "up_to_date_title": "У вас актуальная версия",
+        "up_to_date_message": "macSSH %@ — последняя стабильная версия.",
+        "update_check_failed": "Ошибка проверки обновлений",
+        "update_download_failed": "Ошибка скачивания",
+        "update_dmg_ready_title": "Обновление загружено",
+        "update_dmg_ready_msg": "Сохранено как %@ в Загрузки. Перетащите macSSH в Программы.",
+        "skipped_version_label": "Пропущенная версия: v%@",
+        "reset_skipped_version": "Сбросить",
+        "open_release_page": "Открыть страницу релиза"
     ]
 }

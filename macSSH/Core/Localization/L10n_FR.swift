@@ -278,6 +278,30 @@ public enum L10n_FR {
         "auto_save_password_hint_title": "Enregistrement du mot de passe recommandé",
         "auto_save_password_hint_msg": "Activez « Saved » et enregistrez la configuration (⌘S) pour lancer « %@ » automatiquement au démarrage.",
         "auto_startup_missing_password_title": "Automatisation ignorée",
-        "auto_startup_missing_password": "Aucun mot de passe enregistré pour : %@"
+        "auto_startup_missing_password": "Aucun mot de passe enregistré pour : %@",
+
+        // MARK: - Software Update Checker
+        "check_for_updates": "Rechercher les mises à jour…",
+        "checking_for_updates": "Recherche en cours…",
+        "update_available_title": "Mise à jour logicielle",
+        "update_available_headline": "Une nouvelle version de macSSH est disponible !",
+        "update_version_summary": "macSSH %@ est disponible (vous utilisez %@).",
+        "release_notes": "Notes de version",
+        "no_release_notes": "Aucune note de version fournie.",
+        "download_update": "Télécharger",
+        "downloading_update": "Téléchargement…",
+        "skip_this_version": "Ignorer cette version",
+        "never_remind_again": "Ne plus me rappeler",
+        "remind_me_later": "Plus tard",
+        "view_on_github": "Voir sur GitHub",
+        "up_to_date_title": "Vous êtes à jour",
+        "up_to_date_message": "macSSH %@ est la dernière version stable.",
+        "update_check_failed": "Échec de la vérification",
+        "update_download_failed": "Échec du téléchargement",
+        "update_dmg_ready_title": "Mise à jour téléchargée",
+        "update_dmg_ready_msg": "Enregistré sous %@ dans Téléchargements. Glissez macSSH dans Applications.",
+        "skipped_version_label": "Version ignorée : v%@",
+        "reset_skipped_version": "Réinitialiser",
+        "open_release_page": "Ouvrir la page"
     ]
 }

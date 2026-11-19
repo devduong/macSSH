@@ -278,6 +278,30 @@ public enum L10n_ZH_Hans {
         "auto_save_password_hint_title": "建议保存密码",
         "auto_save_password_hint_msg": "请开启“Saved”并保存配置文件 (⌘S)，以便“%@”在启动时自动运行。",
         "auto_startup_missing_password_title": "已跳过启动自动化",
-        "auto_startup_missing_password": "以下连接未保存密码：%@"
+        "auto_startup_missing_password": "以下连接未保存密码：%@",
+
+        // MARK: - Software Update Checker
+        "check_for_updates": "检查更新…",
+        "checking_for_updates": "正在检查更新…",
+        "update_available_title": "软件更新",
+        "update_available_headline": "发现新版本 macSSH！",
+        "update_version_summary": "macSSH %@ 现已发布（当前版本：%@）。",
+        "release_notes": "更新日志",
+        "no_release_notes": "暂无更新说明。",
+        "download_update": "下载更新",
+        "downloading_update": "正在下载更新…",
+        "skip_this_version": "跳过此版本",
+        "never_remind_again": "永不再提醒",
+        "remind_me_later": "稍后提醒",
+        "view_on_github": "在 GitHub 查看",
+        "up_to_date_title": "已是最新版本",
+        "up_to_date_message": "macSSH %@ 已是最新稳定版。",
+        "update_check_failed": "检查更新失败",
+        "update_download_failed": "下载更新失败",
+        "update_dmg_ready_title": "更新已下载",
+        "update_dmg_ready_msg": "已保存到下载目录：%@。请将 macSSH 拖入“应用程序”以完成更新。",
+        "skipped_version_label": "已跳过版本：v%@",
+        "reset_skipped_version": "重置",
+        "open_release_page": "打开发布页"
     ]
 }

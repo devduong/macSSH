@@ -278,6 +278,30 @@ public enum L10n_EN {
         "auto_save_password_hint_title": "Save Password Recommended",
         "auto_save_password_hint_msg": "Enable 'Saved' and save your configuration (⌘S) so \"%@\" can run automatically on launch.",
         "auto_startup_missing_password_title": "Startup Automation Skipped",
-        "auto_startup_missing_password": "No saved password for: %@"
+        "auto_startup_missing_password": "No saved password for: %@",
+
+        // MARK: - Software Update Checker
+        "check_for_updates": "Check for Updates…",
+        "checking_for_updates": "Checking for updates…",
+        "update_available_title": "Software Update",
+        "update_available_headline": "A new version of macSSH is available!",
+        "update_version_summary": "macSSH %@ is now available (you have %@).",
+        "release_notes": "Release Notes",
+        "no_release_notes": "No release notes provided.",
+        "download_update": "Download Update",
+        "downloading_update": "Downloading update…",
+        "skip_this_version": "Skip This Version",
+        "never_remind_again": "Never Remind Again",
+        "remind_me_later": "Later",
+        "view_on_github": "View on GitHub",
+        "up_to_date_title": "You're Up to Date",
+        "up_to_date_message": "macSSH %@ is the latest stable release.",
+        "update_check_failed": "Update Check Failed",
+        "update_download_failed": "Download Failed",
+        "update_dmg_ready_title": "Update Downloaded",
+        "update_dmg_ready_msg": "Saved to Downloads as %@. Drag macSSH to Applications to finish updating.",
+        "skipped_version_label": "Skipped version: v%@",
+        "reset_skipped_version": "Reset",
+        "open_release_page": "Open Release Page"
     ]
 }

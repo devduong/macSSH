@@ -10,6 +10,7 @@ import SwiftUI
 struct AboutSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var l10n = LocalizationManager.shared
+    @State private var updateService = UpdateService.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -78,7 +79,23 @@ struct AboutSheetView: View {
             Divider()
 
             HStack {
+                Button {
+                    Task {
+                        await updateService.checkForUpdates(manual: true)
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        if updateService.isChecking {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+                        Text(updateService.isChecking ? L10n.tr("checking_for_updates") : L10n.tr("check_for_updates"))
+                    }
+                }
+                .disabled(updateService.isChecking)
+
                 Spacer()
+
                 Button(L10n.tr("ok")) {
                     dismiss()
                 }
