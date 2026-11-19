@@ -278,6 +278,7 @@ struct MacSSHApp: App {
 private struct AppCommands: Commands {
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var appearanceManager = AppearanceManager.shared
+    @State private var updateService = UpdateService.shared
     @FocusedValue(\.connectionMenuActions) private var connectionActions
     @Environment(\.openWindow) private var openWindow
 
@@ -288,12 +289,7 @@ private struct AppCommands: Commands {
                 openWindow(id: WindowID.about)
             }
 
-            Button(L10n.tr("check_for_updates")) {
-                ensureRegularActivation()
-                Task { @MainActor in
-                    await UpdateService.shared.checkForUpdates(manual: true)
-                }
-            }
+            checkForUpdatesButton
 
             Button(L10n.tr("donate")) {
                 ensureRegularActivation()
@@ -453,6 +449,17 @@ private struct AppCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
+            checkForUpdatesButton
+
+            if let available = updateService.availableUpdate {
+                Button("\(L10n.tr("download_update")) (v\(available.version))…") {
+                    ensureRegularActivation()
+                    updateService.showAvailableUpdatePrompt()
+                }
+            }
+
+            Divider()
+
             Button(L10n.tr("donate")) {
                 ensureRegularActivation()
                 openWindow(id: WindowID.donate)
@@ -472,6 +479,16 @@ private struct AppCommands: Commands {
                 }
             }
         }
+    }
+
+    private var checkForUpdatesButton: some View {
+        Button(updateService.isChecking ? L10n.tr("checking_for_updates") : L10n.tr("check_for_updates")) {
+            ensureRegularActivation()
+            Task { @MainActor in
+                await UpdateService.shared.checkForUpdates(manual: true)
+            }
+        }
+        .disabled(updateService.isChecking)
     }
 
     private func ensureRegularActivation() {
