@@ -27,6 +27,8 @@ struct ConnectionListColumn: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         Group {
             switch viewModel.state {
             case .idle, .loading:
@@ -158,9 +160,9 @@ struct ConnectionListColumn: View {
     private var listTitle: String {
         switch viewModel.selectedSidebarItem {
         case .allConnections:
-            return "All Connections"
+            return L10n.tr("all_connections")
         case .folder(let id):
-            return viewModel.folders.first { $0.id == id }?.name ?? "Folder"
+            return viewModel.folders.first { $0.id == id }?.name ?? L10n.tr("folder")
         }
     }
 
@@ -171,18 +173,18 @@ struct ConnectionListColumn: View {
             case .allConnections:
                 EmptyStateView(
                     icon: "server.rack",
-                    title: "No Connections",
-                    message: "Add a new SFTP, FTP, or SMB connection to get started\nwith remote file management.",
-                    actionTitle: "Add Connection"
+                    title: L10n.tr("no_connections"),
+                    message: L10n.tr("no_connections_desc"),
+                    actionTitle: L10n.tr("add_connection")
                 ) {
                     viewModel.requestNewConnection()
                 }
             case .folder:
                 EmptyStateView(
                     icon: "folder",
-                    title: "Empty Folder",
-                    message: "This folder has no connections.\nDrag connections here or create a new one.",
-                    actionTitle: "Add Connection"
+                    title: loc("Empty Folder", "Thư mục trống"),
+                    message: loc("This folder has no connections.\nDrag connections here or create a new one.", "Thư mục này chưa có kết nối nào.\nKéo kết nối vào đây hoặc tạo mới."),
+                    actionTitle: L10n.tr("add_connection")
                 ) {
                     viewModel.requestNewConnection()
                 }
@@ -285,20 +287,20 @@ struct ConnectionListColumn: View {
                     Button {
                         viewModel.disconnectConnection(connection)
                     } label: {
-                        Label(loc("Disconnect", "Ngắt kết nối"), systemImage: "bolt.slash.fill")
+                        Label(L10n.tr("disconnect"), systemImage: "bolt.slash.fill")
                     }
                 } else {
                     Button {
                         viewModel.connectToServer(connection)
                     } label: {
-                        Label(loc("Connect", "Kết nối"), systemImage: "bolt.fill")
+                        Label(L10n.tr("connect"), systemImage: "bolt.fill")
                     }
                 }
 
                 Button {
                     viewModel.requestFileBrowser(for: connection)
                 } label: {
-                    Label(loc("Open File Browser", "Mở trình duyệt tệp"), systemImage: "folder")
+                    Label(L10n.tr("open_file_browser"), systemImage: "folder")
                 }
 
                 if connection.connectionType.supportsFinderMount {
@@ -326,14 +328,14 @@ struct ConnectionListColumn: View {
                 Button {
                     viewModel.requestTerminal(for: connection)
                 } label: {
-                    Label(loc("Open Terminal", "Mở Terminal"), systemImage: "terminal")
+                    Label(L10n.tr("open_terminal"), systemImage: "terminal")
                 }
                 .disabled(connection.connectionType != .sftp)
 
                 Button {
                     TerminalLauncherService.openInMacOSTerminal(connection: connection)
                 } label: {
-                    Label(loc("Open in macOS Terminal", "Mở trong macOS Terminal"), systemImage: "terminal.fill")
+                    Label(L10n.tr("open_in_macos_terminal"), systemImage: "terminal.fill")
                 }
                 .disabled(connection.connectionType != .sftp)
 
@@ -384,13 +386,13 @@ struct ConnectionListColumn: View {
                 Button {
                     viewModel.editConnection(connection)
                 } label: {
-                    Label(loc("Edit", "Chỉnh sửa"), systemImage: "pencil")
+                    Label(L10n.tr("edit"), systemImage: "pencil")
                 }
 
                 Button {
                     Task { await viewModel.duplicateConnection(connection) }
                 } label: {
-                    Label(loc("Duplicate", "Nhân bản"), systemImage: "plus.square.on.square")
+                    Label(L10n.tr("duplicate"), systemImage: "plus.square.on.square")
                 }
 
                 Divider()
@@ -398,7 +400,7 @@ struct ConnectionListColumn: View {
                 Button(role: .destructive) {
                     Task { await viewModel.deleteConnection(connection) }
                 } label: {
-                    Label(loc("Delete", "Xóa"), systemImage: "trash")
+                    Label(L10n.tr("delete"), systemImage: "trash")
                 }
             }
             .tag(connection.id)

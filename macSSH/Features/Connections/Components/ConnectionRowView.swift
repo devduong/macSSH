@@ -80,6 +80,8 @@ struct ConnectionRowView: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         HStack(alignment: .center, spacing: 12) {
             mainConnectionIcon
 
@@ -110,6 +112,35 @@ struct ConnectionRowView: View {
 
     // MARK: - Left Column
 
+    private var mainIconTooltip: String {
+        if isConnecting {
+            return loc("Connecting to server…", "Đang kết nối tới máy chủ…")
+        }
+        if isMountingInFinder {
+            return loc("Mounting or unmounting in Finder…", "Đang mount hoặc gỡ mount trong Finder…")
+        }
+        if isInternetDown {
+            return loc("Internet connection lost — active session interrupted", "Mất kết nối Internet — phiên hoạt động bị gián đoạn")
+        }
+        if isActive {
+            return loc("Connected — active session is running", "Đã kết nối — phiên làm việc đang chạy")
+        }
+        if isMountedInFinder {
+            return L10n.tr("mounted_in_finder")
+        }
+        return loc(
+            "\(connection.connectionType.badgeName) connection (\(connection.host):\(connection.port))",
+            "Kết nối \(connection.connectionType.badgeName) (\(connection.host):\(connection.port))"
+        )
+    }
+
+    private var authTooltip: String {
+        if connection.authMethod == .privateKey {
+            return loc("Authenticates using an SSH private key", "Xác thực bằng SSH Private Key")
+        }
+        return loc("Authenticates using username and password", "Xác thực bằng tên đăng nhập và mật khẩu")
+    }
+
     private var mainConnectionIcon: some View {
         ZStack(alignment: .bottomTrailing) {
             Image(systemName: connection.iconName)
@@ -133,6 +164,8 @@ struct ConnectionRowView: View {
                     .offset(x: 2, y: 2)
             }
         }
+        .contentShape(RoundedRectangle(cornerRadius: RowMetrics.mainIconCornerRadius))
+        .hoverTooltip(mainIconTooltip)
     }
 
     private var leftInfoColumn: some View {
@@ -151,6 +184,8 @@ struct ConnectionRowView: View {
                     .foregroundStyle(.orange)
                     .padding(.horizontal, 5).padding(.vertical, 1.5)
                     .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .contentShape(RoundedRectangle(cornerRadius: 4))
+                    .hoverTooltip(loc("Folder: \(folder)", "Thư mục: \(folder)"))
                 }
 
                 Text(connection.connectionString)
@@ -180,6 +215,8 @@ struct ConnectionRowView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 4.5))
+                .contentShape(RoundedRectangle(cornerRadius: 4.5))
+                .hoverTooltip(authTooltip)
 
                 if !connection.tags.isEmpty {
                     ForEach(connection.tags.prefix(3), id: \.self) { tag in
@@ -250,7 +287,7 @@ struct ConnectionRowView: View {
                 background: AnyShapeStyle(.quaternary),
                 width: RowMetrics.actionButtonWidth,
                 iconFontSize: RowMetrics.actionIconFont,
-                helpText: loc("Open File Browser", "Mở trình duyệt tệp")
+                helpText: L10n.tr("open_file_browser")
             ) {
                 onFileBrowser?()
             }
@@ -277,7 +314,11 @@ struct ConnectionRowView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isMountingInFinder)
-                .help(isMountedInFinder ? L10n.tr("open_mounted_folder") : L10n.tr("mount_in_finder"))
+                .hoverTooltip(
+                    isMountedInFinder
+                        ? L10n.tr("open_mounted_folder")
+                        : L10n.tr("mount_in_finder")
+                )
 
                 if isMountedInFinder {
                     actionIconButton(
@@ -301,7 +342,7 @@ struct ConnectionRowView: View {
                     background: AnyShapeStyle(.quaternary),
                     width: RowMetrics.actionButtonWidth,
                     iconFontSize: RowMetrics.actionIconFont,
-                    helpText: loc("Open Terminal", "Mở Terminal")
+                    helpText: L10n.tr("open_terminal")
                 ) {
                     onTerminal?()
                 }
@@ -327,7 +368,7 @@ struct ConnectionRowView: View {
                 .contentShape(RoundedRectangle(cornerRadius: RowMetrics.actionButtonCornerRadius))
         }
         .buttonStyle(.plain)
-        .help(helpText)
+        .hoverTooltip(helpText)
     }
 
     @ViewBuilder
@@ -381,7 +422,7 @@ struct ConnectionRowView: View {
         if isConnecting {
             HStack(spacing: 4.5) {
                 ProgressView().controlSize(.mini)
-                Text(loc("Connecting", "Đang kết nối"))
+                Text(L10n.tr("connecting"))
                     .font(.system(size: RowMetrics.pillFontSize, weight: .semibold))
                     .foregroundStyle(.orange)
                     .lineLimit(1)
@@ -389,6 +430,8 @@ struct ConnectionRowView: View {
             .padding(.horizontal, 9)
             .frame(height: RowMetrics.pillHeight)
             .background(Color.orange.opacity(0.12), in: Capsule())
+            .contentShape(Capsule())
+            .hoverTooltip(loc("Connecting to server…", "Đang kết nối tới máy chủ…"))
         } else if isInternetDown {
             HStack(spacing: 4.5) {
                 Image(systemName: "wifi.slash")
@@ -402,10 +445,21 @@ struct ConnectionRowView: View {
             .frame(height: RowMetrics.pillHeight)
             .background(Color.red.opacity(0.12), in: Capsule())
             .opacity(isPulsing ? 0.6 : 1.0)
+            .contentShape(Capsule())
+            .hoverTooltip(loc("Internet connection lost — waiting to reconnect", "Mất kết nối Internet — đang chờ kết nối lại"))
         } else if isActive {
-            dotStatusPill(title: loc("Active", "Đang chạy"), color: .green)
+            dotStatusPill(
+                title: L10n.tr("active"),
+                color: .green,
+                widthMultiplier: 1.2,
+                tooltip: loc("Connection is active — session is running", "Kết nối đang hoạt động — phiên làm việc đang chạy")
+            )
         } else if isMountedInFinder {
-            dotStatusPill(title: "Finder", color: .teal)
+            dotStatusPill(
+                title: "Finder",
+                color: .teal,
+                tooltip: loc("Mounted in macOS Finder", "Đã mount vào macOS Finder")
+            )
         } else {
             Text(connection.connectionType.badgeName)
                 .font(.system(size: RowMetrics.pillFontSize, weight: .semibold))
@@ -414,20 +468,31 @@ struct ConnectionRowView: View {
                 .padding(.horizontal, 9)
                 .frame(height: RowMetrics.pillHeight)
                 .background(.quaternary, in: Capsule())
+                .contentShape(Capsule())
+                .hoverTooltip(loc("Protocol: \(connection.connectionType.displayName) — disconnected", "Giao thức: \(connection.connectionType.displayName) — chưa kết nối"))
         }
     }
 
-    private func dotStatusPill(title: String, color: Color) -> some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: RowMetrics.pillDotSize, height: RowMetrics.pillDotSize)
-            Text(title)
-                .font(.system(size: RowMetrics.pillFontSize, weight: .bold))
-                .foregroundStyle(color)
-                .lineLimit(1)
+    private func dotStatusPill(
+        title: String,
+        color: Color,
+        widthMultiplier: CGFloat = 1.0,
+        tooltip: String
+    ) -> some View {
+        ExpandedWidthLayout(widthMultiplier: widthMultiplier) {
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: RowMetrics.pillDotSize, height: RowMetrics.pillDotSize)
+                Text(title)
+                    .font(.system(size: RowMetrics.pillFontSize, weight: .bold))
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: RowMetrics.pillHeight)
         }
-        .padding(.horizontal, 9)
-        .frame(height: RowMetrics.pillHeight)
         .background(color.opacity(0.12), in: Capsule())
+        .contentShape(Capsule())
+        .hoverTooltip(tooltip)
     }
 
     private func quickSettingToggleButton(
@@ -493,6 +558,26 @@ struct ConnectionRowView: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help(helpText)
+        .hoverTooltip(helpText)
+    }
+}
+
+private struct ExpandedWidthLayout: Layout {
+    let widthMultiplier: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let subview = subviews.first else { return .zero }
+        let size = subview.sizeThatFits(proposal)
+        return CGSize(width: ceil(size.width * widthMultiplier), height: size.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let subview = subviews.first else { return }
+        let naturalSize = subview.sizeThatFits(.unspecified)
+        subview.place(
+            at: CGPoint(x: bounds.midX, y: bounds.midY),
+            anchor: .center,
+            proposal: ProposedViewSize(naturalSize)
+        )
     }
 }

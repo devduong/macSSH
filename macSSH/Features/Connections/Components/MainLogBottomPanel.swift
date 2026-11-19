@@ -10,6 +10,7 @@ import AppKit
 
 struct MainLogBottomPanel: View {
     @Binding var isPresented: Bool
+    @ObservedObject private var l10n = LocalizationManager.shared
     @State private var logStore = AppLogStore.shared
     @State private var selectedLevel: LogLevelFilter = .all
     @State private var selectedCategory: LogCategoryFilter = .all
@@ -78,6 +79,8 @@ struct MainLogBottomPanel: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             // Drag Resize Handle Bar
             resizeHandleBar

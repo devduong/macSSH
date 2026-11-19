@@ -18,6 +18,7 @@ struct FileViewerSheet: View {
     let onOpenInEditor: ((String) -> Void)?
     let onClose: () -> Void
 
+    @ObservedObject private var l10n = LocalizationManager.shared
     @State private var viewerMode: ViewerContentMode = .loading
     @State private var mediaPlayer: AVPlayer?
     @State private var zoomScale: CGFloat = 1.0
@@ -35,6 +36,8 @@ struct FileViewerSheet: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             headerBar
             Divider()

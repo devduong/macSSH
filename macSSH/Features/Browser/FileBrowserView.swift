@@ -10,6 +10,7 @@ import SwiftUI
 struct FileBrowserView: View {
     @Bindable var viewModel: FileBrowserViewModel
     @ObservedObject private var mountManager = FinderMountManager.shared
+    @ObservedObject private var l10n = LocalizationManager.shared
     @Environment(\.openWindow) private var openWindow
 
     init(viewModel: FileBrowserViewModel) {
@@ -17,6 +18,8 @@ struct FileBrowserView: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             // Content
             contentView
@@ -198,6 +201,7 @@ struct FileBrowserView: View {
 // MARK: - File Browser Toolbar Sections
 private struct FileBrowserLeadingToolbar: CustomizableToolbarContent {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     var body: some CustomizableToolbarContent {
         ToolbarItem(id: "back", placement: .navigation) {
@@ -272,6 +276,7 @@ private struct FileBrowserLeadingToolbar: CustomizableToolbarContent {
 private struct FileBrowserTrailingToolbar: CustomizableToolbarContent {
     @Bindable var viewModel: FileBrowserViewModel
     @ObservedObject var mountManager: FinderMountManager
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     var body: some CustomizableToolbarContent {
         ToolbarItem(id: "finderMount", placement: .primaryAction) {
@@ -347,6 +352,7 @@ private struct FileBrowserTrailingToolbar: CustomizableToolbarContent {
 private struct FinderMountToolbarButton: View {
     @Bindable var viewModel: FileBrowserViewModel
     @ObservedObject var mountManager: FinderMountManager
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     private var isMounted: Bool {
         mountManager.isMounted(viewModel.connection.id)

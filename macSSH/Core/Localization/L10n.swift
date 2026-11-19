@@ -36,9 +36,16 @@ public enum AppLanguage: String, CaseIterable, Identifiable {
 public final class LocalizationManager: ObservableObject, @unchecked Sendable {
     public static let shared = LocalizationManager()
 
-    @AppStorage("appLanguage") public var currentLanguage: String = "auto" {
+    private static let languageDefaultsKey = "appLanguage"
+    private static let lock = NSLock()
+    private var cachedLanguage: String
+
+    @Published public var currentLanguage: String {
         didSet {
-            objectWillChange.send()
+            Self.lock.withLock {
+                cachedLanguage = currentLanguage
+            }
+            UserDefaults.standard.set(currentLanguage, forKey: Self.languageDefaultsKey)
         }
     }
 
@@ -51,11 +58,16 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
         "zh-Hant": L10n_ZH_Hant.strings
     ]
 
-    private init() {}
+    private init() {
+        let saved = UserDefaults.standard.string(forKey: Self.languageDefaultsKey) ?? AppLanguage.system.rawValue
+        self.cachedLanguage = saved
+        self.currentLanguage = saved
+    }
 
     public var activeLanguageCode: String {
-        if currentLanguage != "auto" && dictionaries[currentLanguage] != nil {
-            return currentLanguage
+        let selected = Self.lock.withLock { cachedLanguage }
+        if selected != "auto" && dictionaries[selected] != nil {
+            return selected
         }
         let preferred = Locale.preferredLanguages.first ?? "en"
         if preferred.starts(with: "vi") { return "vi" }
@@ -64,6 +76,10 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
         if preferred.starts(with: "zh-Hant") || preferred.starts(with: "zh-TW") || preferred.starts(with: "zh-HK") { return "zh-Hant" }
         if preferred.starts(with: "zh") { return "zh-Hans" }
         return "en"
+    }
+
+    public var locale: Locale {
+        Locale(identifier: activeLanguageCode)
     }
 
     public var isVietnamese: Bool {

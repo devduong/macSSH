@@ -9,12 +9,15 @@ import SwiftUI
 
 struct TransfersPopover: View {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var l10n = LocalizationManager.shared
 
     private var needsScrolling: Bool {
         viewModel.allTransfers.count > 5
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             header
             Divider()

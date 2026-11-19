@@ -19,13 +19,15 @@ struct SidebarView: View {
     @State private var isShowingAboutSheet = false
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             // Folders and connections list
             List(selection: $viewModel.selectedSidebarItem) {
             // All Connections
             NavigationLink(value: SidebarSelection.allConnections) {
                 Label {
-                    Text(loc("All Connections", "Tất cả kết nối"))
+                    Text(L10n.tr("all_connections"))
                 } icon: {
                     Image(systemName: "server.rack")
                         .foregroundStyle(Color.accentColor)
@@ -47,7 +49,7 @@ struct SidebarView: View {
             }
 
             // Folders Section
-            Section(loc("Folders", "Thư mục")) {
+            Section(L10n.tr("folders")) {
                 ForEach(viewModel.folders) { folder in
                     NavigationLink(value: SidebarSelection.folder(folder.id)) {
                         FolderRowView(
@@ -73,7 +75,7 @@ struct SidebarView: View {
                         Button {
                             viewModel.requestNewConnection(inFolder: folder.id)
                         } label: {
-                            Label(loc("New Connection", "Thêm kết nối mới"), systemImage: "plus.circle")
+                            Label(L10n.tr("new_connection"), systemImage: "plus.circle")
                         }
 
                         Divider()
@@ -83,7 +85,7 @@ struct SidebarView: View {
                             renameText = folder.name
                             isShowingRenameAlert = true
                         } label: {
-                            Label(loc("Rename", "Đổi tên"), systemImage: "pencil")
+                            Label(L10n.tr("rename"), systemImage: "pencil")
                         }
 
                         Divider()
@@ -91,7 +93,7 @@ struct SidebarView: View {
                         Button(role: .destructive) {
                             viewModel.confirmDeleteFolder(folder)
                         } label: {
-                            Label(loc("Delete", "Xóa"), systemImage: "trash")
+                            Label(L10n.tr("delete"), systemImage: "trash")
                         }
                     }
                 }
@@ -122,14 +124,14 @@ struct SidebarView: View {
                 Button {
                     viewModel.isShowingNewFolderSheet = true
                 } label: {
-                    Label(loc("New Folder", "Thư mục mới"), systemImage: "folder.badge.plus")
+                    Label(L10n.tr("new_folder"), systemImage: "folder.badge.plus")
                 }
-                .help(loc("New Folder", "Thư mục mới"))
+                .help(L10n.tr("new_folder"))
             }
         }
-        .alert(loc("Rename Folder", "Đổi tên thư mục"), isPresented: $isShowingRenameAlert) {
-            TextField(loc("Folder name", "Tên thư mục"), text: $renameText)
-            Button(loc("Rename", "Đổi tên")) {
+        .alert(L10n.tr("rename_folder"), isPresented: $isShowingRenameAlert) {
+            TextField(L10n.tr("folder_name"), text: $renameText)
+            Button(L10n.tr("rename")) {
                 let name = renameText.trimmed
                 if !name.isEmpty, let folder = folderToRename {
                     Task { await viewModel.renameFolder(folder, to: name) }
@@ -138,12 +140,12 @@ struct SidebarView: View {
                 renameText = ""
             }
             .keyboardShortcut(.defaultAction)
-            Button(loc("Cancel", "Hủy"), role: .cancel) {
+            Button(L10n.tr("cancel"), role: .cancel) {
                 folderToRename = nil
                 renameText = ""
             }
         } message: {
-            Text(loc("Enter a new name for the folder.", "Nhập tên mới cho thư mục."))
+            Text(L10n.tr("enter_new_name_desc"))
         }
         .sheet(isPresented: $isShowingSettingsSheet) {
             SettingsView()
@@ -161,7 +163,7 @@ struct SidebarView: View {
     private var sidebarFooter: some View {
         VStack(spacing: 2) {
             footerButton(
-                title: loc("Settings", "Cài đặt"),
+                title: L10n.tr("settings"),
                 icon: "gearshape",
                 color: .secondary
             ) {
@@ -169,7 +171,7 @@ struct SidebarView: View {
             }
 
             footerButton(
-                title: loc("Donate", "Ủng hộ"),
+                title: L10n.tr("donate"),
                 icon: "cup.and.saucer.fill",
                 color: .orange
             ) {
@@ -177,7 +179,7 @@ struct SidebarView: View {
             }
 
             footerButton(
-                title: loc("About", "Giới thiệu"),
+                title: L10n.tr("about"),
                 icon: "info.circle",
                 color: .blue
             ) {

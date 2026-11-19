@@ -25,7 +25,6 @@ struct SettingsView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("appLanguage") private var selectedLanguage: String = "en"
     @AppStorage("autoCheckUpdates") private var autoCheckUpdates: Bool = true
 
     @ObservedObject private var l10n = LocalizationManager.shared
@@ -34,6 +33,8 @@ struct SettingsView: View {
     @State private var updateService = UpdateService.shared
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             TabView {
                 Form {
@@ -41,7 +42,7 @@ struct SettingsView: View {
                 }
                 .formStyle(.grouped)
                 .tabItem {
-                    Label(loc("General", "Cài đặt chung"), systemImage: "gearshape")
+                    Label(L10n.tr("general"), systemImage: "gearshape")
                 }
 
                 Form {
@@ -49,7 +50,7 @@ struct SettingsView: View {
                 }
                 .formStyle(.grouped)
                 .tabItem {
-                    Label(loc("Security", "Bảo mật"), systemImage: "lock.shield")
+                    Label(L10n.tr("security"), systemImage: "lock.shield")
                 }
 
                 Form {
@@ -57,7 +58,7 @@ struct SettingsView: View {
                 }
                 .formStyle(.grouped)
                 .tabItem {
-                    Label(loc("Configuration", "Cấu hình"), systemImage: "doc.badge.gearshape")
+                    Label(L10n.tr("configuration"), systemImage: "doc.badge.gearshape")
                 }
             }
             .padding(.top, 12)
@@ -67,7 +68,7 @@ struct SettingsView: View {
 
             HStack {
                 Spacer()
-                Button(loc("Done", "Xong")) {
+                Button(L10n.tr("done")) {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -79,25 +80,25 @@ struct SettingsView: View {
         }
         .frame(width: 520, height: 465)
         .confirmationDialog(
-            loc("Create New Configuration?", "Tạo file cấu hình mới?"),
+            L10n.tr("create_new_config_title"),
             isPresented: $showNewConfirmation,
             titleVisibility: .visible
         ) {
-            Button(loc("Create New (Clear All)", "Tạo mới (Xóa tất cả)"), role: .destructive) {
+            Button(L10n.tr("create_new_clear_all"), role: .destructive) {
                 Task {
                     do {
                         try await configService.newConfiguration()
-                        statusMessage = loc("Created new empty configuration.", "Đã tạo cấu hình trống mới.")
+                        statusMessage = L10n.tr("created_new_config")
                         isErrorMessage = false
                     } catch {
-                        statusMessage = "\(loc("Failed", "Thất bại")): \(error.localizedDescription)"
+                        statusMessage = "\(L10n.tr("failed")): \(error.localizedDescription)"
                         isErrorMessage = true
                     }
                 }
             }
-            Button(loc("Cancel", "Hủy"), role: .cancel) {}
+            Button(L10n.tr("cancel"), role: .cancel) {}
         } message: {
-            Text(loc("This will remove all current connections and folders from the application. Make sure to export or save your settings first if you want to keep them.", "Hành động này sẽ xóa toàn bộ các kết nối và thư mục hiện tại. Hãy đảm bảo bạn đã xuất hoặc lưu cài đặt trước."))
+            Text(L10n.tr("create_new_config_desc"))
         }
     }
 
@@ -120,15 +121,12 @@ struct SettingsView: View {
         }
 
         Section(L10n.tr("language")) {
-            Picker(L10n.tr("language"), selection: $selectedLanguage) {
+            Picker(L10n.tr("language"), selection: $l10n.currentLanguage) {
                 ForEach(AppLanguage.allCases) { lang in
                     Text(lang.displayName).tag(lang.rawValue)
                 }
             }
             .pickerStyle(.menu)
-            .onChange(of: selectedLanguage) { _, newValue in
-                LocalizationManager.shared.currentLanguage = newValue
-            }
 
             Text(L10n.tr("language_desc"))
                 .font(.caption)
@@ -228,12 +226,12 @@ struct SettingsView: View {
                     }
                 }
             )) {
-                Label(loc("Require Touch ID", "Yêu cầu Touch ID"), systemImage: "touchid")
+                Label(L10n.tr("require_touch_id"), systemImage: "touchid")
             }
             .disabled(!isBiometricAvailable)
 
             if !isBiometricAvailable {
-                Text(loc("Touch ID is not available on this Mac. Use a Mac with Touch ID or an Apple Watch to enable this feature.", "Touch ID không khả dụng trên máy Mac này."))
+                Text(L10n.tr("touch_id_unavailable"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -241,8 +239,8 @@ struct SettingsView: View {
             if isEnabled {
                 Toggle(isOn: Bindable(appLockManager).lockOnAppResume) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(loc("Lock when switching apps", "Khóa khi chuyển ứng dụng"))
-                        Text(loc("Require authentication when returning to macSSH", "Yêu cầu xác thực khi quay lại macSSH"))
+                        Text(L10n.tr("lock_when_switching"))
+                        Text(L10n.tr("lock_when_switching_desc"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -250,8 +248,8 @@ struct SettingsView: View {
 
                 Toggle(isOn: Bindable(appLockManager).lockBeforeConnection) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(loc("Require before each connection", "Yêu cầu trước mỗi kết nối"))
-                        Text(loc("Authenticate before connecting to any server", "Xác thực trước khi kết nối tới bất kỳ máy chủ nào"))
+                        Text(L10n.tr("lock_before_connection"))
+                        Text(L10n.tr("lock_before_connection_desc"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -259,7 +257,7 @@ struct SettingsView: View {
 
                 HStack {
                     Toggle(isOn: Bindable(appLockManager).lockAfterInactivity) {
-                        Text(loc("Lock after inactivity", "Khóa khi không hoạt động"))
+                        Text(L10n.tr("lock_after_inactivity"))
                     }
 
                     Spacer()
@@ -275,10 +273,10 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text(loc("Security", "Bảo mật"))
+            Text(L10n.tr("security"))
         } footer: {
             if isEnabled {
-                Text(loc("The app always requires authentication on launch.", "Ứng dụng luôn yêu cầu xác thực khi mở."))
+                Text(L10n.tr("lock_on_launch_notice"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -306,32 +304,32 @@ struct SettingsView: View {
                     Task {
                         do {
                             if let url = try await configService.exportSettings() {
-                                statusMessage = "\(loc("Exported to", "Đã xuất ra")): \(url.lastPathComponent)"
+                                statusMessage = "\(L10n.tr("exported_to")): \(url.lastPathComponent)"
                                 isErrorMessage = false
                             }
                         } catch {
-                            statusMessage = "\(loc("Export failed", "Xuất thất bại")): \(error.localizedDescription)"
+                            statusMessage = "\(L10n.tr("export_failed")): \(error.localizedDescription)"
                             isErrorMessage = true
                         }
                     }
                 } label: {
-                    Label(loc("Export to JSON…", "Xuất ra JSON…"), systemImage: "square.and.arrow.up")
+                    Label(L10n.tr("export_to_json"), systemImage: "square.and.arrow.up")
                 }
 
                 Button {
                     Task {
                         do {
                             if try await configService.importSettings(replaceExisting: false) {
-                                statusMessage = loc("Settings imported successfully.", "Đã nhập cài đặt thành công.")
+                                statusMessage = L10n.tr("settings_imported")
                                 isErrorMessage = false
                             }
                         } catch {
-                            statusMessage = "\(loc("Import failed", "Nhập thất bại")): \(error.localizedDescription)"
+                            statusMessage = "\(L10n.tr("import_failed")): \(error.localizedDescription)"
                             isErrorMessage = true
                         }
                     }
                 } label: {
-                    Label(loc("Import from JSON…", "Nhập từ JSON…"), systemImage: "square.and.arrow.down")
+                    Label(L10n.tr("import_from_json"), systemImage: "square.and.arrow.down")
                 }
             }
 
@@ -342,31 +340,31 @@ struct SettingsView: View {
                     Task {
                         do {
                             try await configService.save()
-                            statusMessage = configService.lastOperationStatus ?? loc("Saved.", "Đã lưu.")
+                            statusMessage = configService.lastOperationStatus ?? L10n.tr("saved")
                             isErrorMessage = false
                         } catch {
-                            statusMessage = "\(loc("Save failed", "Lưu thất bại")): \(error.localizedDescription)"
+                            statusMessage = "\(L10n.tr("save_failed")): \(error.localizedDescription)"
                             isErrorMessage = true
                         }
                     }
                 } label: {
-                    Label(loc("Save", "Lưu"), systemImage: "tray.and.arrow.down")
+                    Label(L10n.tr("save"), systemImage: "tray.and.arrow.down")
                 }
 
                 Button {
                     Task {
                         do {
                             if let url = try await configService.saveAs() {
-                                statusMessage = "\(loc("Saved as", "Đã lưu thành")): \(url.lastPathComponent)"
+                                statusMessage = "\(L10n.tr("saved_as")): \(url.lastPathComponent)"
                                 isErrorMessage = false
                             }
                         } catch {
-                            statusMessage = "\(loc("Save As failed", "Lưu thành thất bại")): \(error.localizedDescription)"
+                            statusMessage = "\(L10n.tr("save_failed")): \(error.localizedDescription)"
                             isErrorMessage = true
                         }
                     }
                 } label: {
-                    Label(loc("Save As…", "Lưu thành…"), systemImage: "folder.badge.plus")
+                    Label(L10n.tr("save_as"), systemImage: "folder.badge.plus")
                 }
 
                 Spacer()
@@ -374,11 +372,11 @@ struct SettingsView: View {
                 Button(role: .destructive) {
                     showNewConfirmation = true
                 } label: {
-                    Label(loc("New Config", "Cấu hình mới"), systemImage: "plus.square.dashed")
+                    Label(L10n.tr("new_configuration"), systemImage: "plus.square.dashed")
                 }
             }
         } header: {
-            Text(loc("Configuration & Data", "Cấu hình & Dữ liệu"))
+            Text(L10n.tr("config_backup"))
         } footer: {
             Text(loc("Export connections, folders, and preferences to a JSON file, or restore from a previous backup.", "Xuất danh sách kết nối, thư mục và tùy chọn ra tệp JSON, hoặc khôi phục từ bản sao lưu."))
                 .font(.caption)

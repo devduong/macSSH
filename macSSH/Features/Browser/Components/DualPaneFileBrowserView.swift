@@ -9,10 +9,13 @@ import SwiftUI
 
 struct DualPaneFileBrowserView: View {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var l10n = LocalizationManager.shared
     let onOpenEditor: (RemoteFile) -> Void
     let onGetInfo: (RemoteFile) -> Void
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         GeometryReader { geo in
             VStack(spacing: 0) {
                 HSplitView {
@@ -44,9 +47,12 @@ struct DualPaneFileBrowserView: View {
 // MARK: - Local Pane View
 private struct LocalPaneView: View {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var l10n = LocalizationManager.shared
     @State private var isPathHovered: Bool = false
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             // Header Bar
             HStack(spacing: 8) {
@@ -278,11 +284,14 @@ private struct LocalPaneView: View {
 // MARK: - Remote Pane View
 private struct RemotePaneView: View {
     @Bindable var viewModel: FileBrowserViewModel
+    @ObservedObject private var l10n = LocalizationManager.shared
     let onOpenEditor: (RemoteFile) -> Void
     let onGetInfo: (RemoteFile) -> Void
     @State private var pathInputText: String = ""
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             // Header Bar
             HStack(spacing: 8) {

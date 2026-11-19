@@ -79,6 +79,10 @@ final class DependencyContainer: ObservableObject {
 
     // MARK: - ViewModel Factories
 
+    lazy var mainConnectionListViewModel: ConnectionListViewModel = {
+        makeConnectionListViewModel()
+    }()
+
     func makeConnectionListViewModel() -> ConnectionListViewModel {
         ConnectionListViewModel(
             connectionRepository: connectionRepository,

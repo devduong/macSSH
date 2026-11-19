@@ -58,6 +58,7 @@ struct TransferQueueBottomPanel: View {
     @Bindable var viewModel: FileBrowserViewModel
     var maxExpandedHeight: CGFloat = 520
 
+    @ObservedObject private var l10n = LocalizationManager.shared
     @State private var selectedTab: TransferQueueTab = .uploads
     @State private var uploadFilter: TransferStatusFilter = .all
     @State private var downloadFilter: TransferStatusFilter = .all
@@ -86,6 +87,8 @@ struct TransferQueueBottomPanel: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         VStack(spacing: 0) {
             if isExpanded {
                 resizeHandleBar
@@ -556,6 +559,7 @@ struct TransferQueueBottomPanel: View {
                         ForEach(filteredTransfers) { transfer in
                             TransferQueueRowView(
                                 transfer: transfer,
+                                languageCode: l10n.activeLanguageCode,
                                 onCancel: { viewModel.cancelTransfer(transfer) },
                                 onRetry: { viewModel.retryTransfer(transfer) },
                                 onRemove: { viewModel.removeTransfer(transfer) }
@@ -730,12 +734,13 @@ struct TransferQueueBottomPanel: View {
 // MARK: - Equatable Transfer Row View
 private struct TransferQueueRowView: View, Equatable {
     let transfer: TransferProgress
+    let languageCode: String
     let onCancel: () -> Void
     let onRetry: () -> Void
     let onRemove: () -> Void
 
     static func == (lhs: TransferQueueRowView, rhs: TransferQueueRowView) -> Bool {
-        lhs.transfer == rhs.transfer
+        lhs.transfer == rhs.transfer && lhs.languageCode == rhs.languageCode
     }
 
     var body: some View {

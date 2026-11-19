@@ -39,6 +39,7 @@ struct ConnectionListView: View {
     @Bindable var viewModel: ConnectionListViewModel
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
     @ObservedObject private var mountManager = FinderMountManager.shared
+    @ObservedObject private var l10n = LocalizationManager.shared
     @Environment(\.openWindow) private var openWindow
     @State private var newFolderName = ""
     @State private var isShowingAboutSheet = false
@@ -89,6 +90,8 @@ struct ConnectionListView: View {
     }
 
     var body: some View {
+        let _ = l10n.currentLanguage
+
         NavigationSplitView {
             SidebarView(viewModel: viewModel)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)

@@ -184,9 +184,12 @@ struct MacSSHApp: App {
     }
 
     var body: some Scene {
+        let _ = l10n.currentLanguage
+
         // Main Window - Connection List (Single-instance window)
         Window("macSSH", id: WindowID.main) {
-            ConnectionListView(viewModel: container.makeConnectionListViewModel())
+            ConnectionListView(viewModel: container.mainConnectionListViewModel)
+                .environment(\.locale, l10n.locale)
                 .toastOverlay()
                 .appLockOverlay()
         }
@@ -199,6 +202,7 @@ struct MacSSHApp: App {
         // Menu Bar Status Item
         MenuBarExtra("macSSH", systemImage: "terminal.fill") {
             MenuBarContentView()
+                .environment(\.locale, l10n.locale)
                 .modelContainer(container.modelContainer)
         }
 
@@ -206,6 +210,7 @@ struct MacSSHApp: App {
         WindowGroup(id: WindowID.fileBrowser, for: String.self) { $windowId in
             if let windowId = windowId {
                 FileBrowserWindow(windowId: windowId)
+                    .environment(\.locale, l10n.locale)
                     .toastOverlay()
                     .appLockOverlay()
             }
@@ -217,6 +222,7 @@ struct MacSSHApp: App {
         WindowGroup(id: WindowID.fileEditor, for: String.self) { $windowId in
             if let windowId = windowId {
                 FileEditorWindow(windowId: windowId)
+                    .environment(\.locale, l10n.locale)
                     .toastOverlay()
                     .appLockOverlay()
             }
@@ -228,6 +234,7 @@ struct MacSSHApp: App {
         WindowGroup(id: WindowID.fileInfo, for: String.self) { $windowId in
             if let windowId = windowId {
                 FileInfoWindow(windowId: windowId)
+                    .environment(\.locale, l10n.locale)
                     .toastOverlay()
                     .appLockOverlay()
             }
@@ -239,6 +246,7 @@ struct MacSSHApp: App {
         WindowGroup(id: WindowID.terminal, for: String.self) { $windowId in
             if let windowId = windowId {
                 TerminalWindow(windowId: windowId)
+                    .environment(\.locale, l10n.locale)
                     .toastOverlay()
                     .appLockOverlay()
             }
@@ -249,6 +257,7 @@ struct MacSSHApp: App {
         // Settings Window (Cmd+,)
         Settings {
             SettingsView()
+                .environment(\.locale, l10n.locale)
                 .toastOverlay()
                 .appLockOverlay()
         }
@@ -256,6 +265,7 @@ struct MacSSHApp: App {
         // About Window
         Window(L10n.tr("about"), id: WindowID.about) {
             AboutSheetView()
+                .environment(\.locale, l10n.locale)
                 .navigationTitle(L10n.tr("about"))
                 .toastOverlay()
         }
@@ -265,6 +275,7 @@ struct MacSSHApp: App {
         // Donate Window
         Window(L10n.tr("donate"), id: WindowID.donate) {
             DonateSheetView()
+                .environment(\.locale, l10n.locale)
                 .navigationTitle(L10n.tr("donate"))
                 .toastOverlay()
         }
@@ -283,6 +294,8 @@ private struct AppCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        let _ = l10n.currentLanguage
+
         CommandGroup(replacing: .appInfo) {
             Button(L10n.tr("about")) {
                 ensureRegularActivation()
