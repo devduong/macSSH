@@ -1,11 +1,11 @@
-# 🚀 macSSH (macOS Native SSH, SFTP & Dynamic SOCKS5 Client)
+# 🚀 macSSH (macOS Native SSH, FTP, SMB, Finder Mount & SOCKS5 Client)
 
 <p align="center">
   <img src="../screens/icon.png" width="128" height="128" alt="macSSH App Icon" style="border-radius: 22%; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
 </p>
 
 <p align="center">
-  <strong>Ứng dụng Native macOS đỉnh cao cho SFTP Dual-Pane, Dynamic SOCKS5 Proxy & SSH Terminal</strong><br>
+  <strong>Ứng dụng Native macOS đa giao thức cho SSH/SFTP, FTP/FTPS, SMB, Mount Finder Đọc-Ghi & Dynamic SOCKS5 Proxy</strong><br>
   <em>Tương thích hoàn hảo macOS 15.0+ Sequoia | Tahoe (Universal 2: Apple Silicon & Intel)</em>
 </p>
 
@@ -28,82 +28,64 @@
 
 ## 🌟 Giới Thiệu Tổng Quan
 
-**macSSH** là ứng dụng native độc quyền dành riêng cho macOS, được phát triển 100% bằng **SwiftUI**, **AppKit** và **SwiftData**. Ứng dụng mang đến trải nghiệm đồ hoạ mượt mà, tốc độ phản hồi tức thì và hiệu năng tối ưu:
+**macSSH** là ứng dụng native dành riêng cho macOS, được xây dựng hoàn toàn bằng **SwiftUI**, **AppKit**, **SwiftData**, **Network.framework**, **AVKit**, **PDFKit** và **NetFS**:
 
-- 🌐 **Dynamic SOCKS5 SSH Tunnel**: Tự động mở SOCKS5 Proxy server (Localhost hoặc chia sẻ mạng LAN) qua kết nối SSH.
-- 📂 **SFTP Browser Dạng 2 Khung (Dual-Pane)**: Kéo thả hai chiều (Local ⇄ Remote), kéo thả trực tiếp ra Finder, tải thư mục đệ quy và thanh gõ đường dẫn trực tiếp.
-- 📝 **Chỉnh Sửa Bằng Ứng Dụng Ngoài ("Open With")**: Mở tệp từ xa bằng VS Code, Xcode, TextEdit,... và tự động upload ghi đè lên server ngay khi bấm Save (`⌘S`).
-- 💻 **SSH Terminal Zero-Latency**: Giả lập `xterm-256color` siêu mượt 60 FPS, phản hồi gõ phím tức thì và hỗ trợ mở trực tiếp sang Terminal.app của macOS.
-- 📜 **Khung Nhật Ký Hoạt Động (Activity Logs)**: Bảng console trực tiếp theo dõi toàn bộ sự kiện SSH, SOCKS5, SFTP, Auth và Database.
-- 💾 **Lưu Cấu Hình Độc Lập**: Lưu/Nạp cấu hình JSON, mã hoá mật khẩu AES-256-GCM không phụ thuộc Keychain, bảo mật sinh trắc học Touch ID.
+- 🔌 **Hỗ Trợ Đa Giao Thức (`SSH`, `FTP`, `SMB`)**: Quản lý đồng nhất máy chủ **SSH/SFTP**, **FTP/FTPS** và **SMB/CIFS** với cổng mặc định, icon/màu sắc nhận diện riêng, đăng nhập ẩn danh/khách và tự khám phá SMB Share.
+- 💽 **Mount FTP & SFTP Trực Tiếp Vào Finder (Đọc & Ghi)**: Biến máy chủ FTP/SFTP thành ổ đĩa trực tiếp trong **Finder** thông qua cầu nối WebDAV Class 2 cục bộ tích hợp sẵn — **không cần macFUSE, FUSE-T hay `sudo`**.
+- ⚡ **Truyền Tải FTP Đa Luồng Tốc Độ Cao (Mặc Định 10 Luồng)**: Kéo thả hai chiều (Local ⇄ Remote ⇄ Finder), upload/download thư mục đệ quy, tải phân đoạn đa luồng (`--range`) và tùy chỉnh `1–32` luồng theo phiên hoặc từng kết nối.
+- 👁️ **Trình Xem Tệp Đa Năng Tích Hợp (SSH, FTP, SMB)**: Xem nhanh văn bản/mã nguồn, hình ảnh, PDF, phát audio/video (`AVKit`) và xem mã Hex/ASCII ngay trong app.
+- 🤖 **Cài Đặt Nhanh `Auto Connect` & `Auto Mount` (FTP)**: Nút bật/tắt tức thì ngay góc dưới bên phải từng item (không reload trang), tự chạy khi mở app / mở cấu hình và tự mount khi bấm **Connect** đối với FTP.
+- 🌐 **Native OpenSSH Terminal & SOCKS5 Proxy**: Giả lập `xterm-256color` 60 FPS, mở Terminal.app 1 click, tunnel `/usr/bin/ssh -D` ổn định qua Sleep/Wake và quản lý tiến trình con chống orphan.
+- 📡 **Giám Sát Internet Real-Time & Auto-Reconnect**: Nhận diện mất mạng tức thì (`NWPathMonitor`), thông báo native tự ẩn sau 5s, tự động kết nối lại theo chu kỳ `0s → 5s → 10s` và ẩn icon Dock gọn gàng khi chạy nền trên Menu Bar.
 
 ---
 
 ## ✨ Tính Năng Nổi Bật
 
-### 🌐 1. Dynamic SOCKS5 Proxy (SSH Tunnel)
-- **Tự Động Mở SOCKS5 Proxy**: Mở proxy server cục bộ an toàn định tuyến toàn bộ lưu lượng qua phiên SSH đang kết nối.
-- **Chia Sẻ Mạng LAN**: Hỗ trợ binding `127.0.0.1` (riêng máy Mac) hoặc `0.0.0.0` (chia sẻ cho mọi thiết bị trong mạng Wi-Fi/LAN, tự động phát hiện IP LAN).
-- **Badge Bật/Tắt Nhanh**: Nút badge SOCKS5 màu tím trên từng server cho phép bật/tắt proxy nhanh mà không cần mở form chỉnh sửa.
-- **Tự Động Xử Lý Trùng Port**: Tự động phát hiện cổng bị chiếm dụng (`Address already in use`), ngắt proxy an toàn và hiện thông báo Toast 5 giây mà không làm gián đoạn kết nối SSH.
+### 🔌 1. Quản Lý Đa Giao Thức: `SSH` / `FTP` / `SMB`
+- **Chọn Nhanh Giao Thức (`SSH | FTP | SMB`)**: Tự động điền cổng chuẩn (`22` / `21` / `445`), đổi icon/màu đặc trưng theo giao thức và ẩn các tùy chọn không liên quan.
+- **Engine FTP / FTPS**: Dùng `/usr/bin/curl` truyền thông tin đăng nhập an toàn qua stdin (`--config -`, không lộ qua `ps aux`), đọc chuẩn cả định dạng Unix và Windows/IIS FTP, hỗ trợ tài khoản `anonymous`.
+- **Engine SMB / CIFS**: Tích hợp `NetFS.framework` và `/usr/bin/smbutil`, tự liệt kê danh sách Share tại `/` hoặc mount thẳng `host/ShareName`, hỗ trợ tài khoản `guest` và tự gỡ mount khi ngắt kết nối.
 
-### 📂 2. Quản Lý Tệp SFTP Dual-Pane & Kéo Thả 2 Chiều
-- **Bố Cục 2 Khung Song Song (Dual-Pane)**: Khung bên trái duyệt tệp Local (máy Mac), khung bên phải duyệt tệp Remote (Server).
-- **Kéo Thả Hai Chiều Native**:
-  - Kéo file/folder từ Local thả sang Remote để tải lên.
-  - Kéo file/folder từ Remote thả sang Local (hoặc thả vào thư mục con) để tải xuống ngay lập tức.
-  - Kéo thả trực tiếp từ Remote ra **Finder** của macOS thông qua `NSFilePromiseProvider`.
-- **Tải Xuống Thư Mục Đệ Quy (Recursive Download)**: Tự động tạo và tải toàn bộ cấu trúc thư mục lồng nhau.
-- **Thanh Nhập Đường Dẫn Trực Tiếp (Direct Path TextField)**: Dễ dàng gõ hoặc dán đường dẫn (`/var/www`, `~/.config`), hỗ trợ phím tắt `⌘L` hoặc `⇧⌘G`.
-- **Cảnh Báo Ghi Đè An Toàn**: Modal `NSAlert` xác nhận Ghi đè (Replace) hoặc Hủy (Cancel) khi tệp đích đã tồn tại.
-- **Bảng Tệp Tối Ưu**: Không còn thanh cuộn ngang vướng víu; hỗ trợ chọn nhiều tệp và xóa hàng loạt (Multi-file batch delete).
+### 💽 2. Mount Máy Chủ FTP & SFTP Vào Finder Đọc-Ghi (Không Cần Driver Ngoài)
+- **Thao Tác Như Thư Mục Mac Thật**: Sử dụng **SwiftNIO WebDAV Class 2 Loopback** kết hợp `/sbin/mount_webdav -S -o browse` — không cần cài kernel extension hay quyền `sudo`.
+- **Hiển Thị Đúng Tên Kết Nối Trên Finder**: Đăng ký hostname loopback cục bộ (`lo0` → `127.0.0.1` qua `dnssd`) để Sidebar Finder hiển thị trực tiếp **`Name`** của kết nối thay vì `127.0.0.1` hay `.local`.
+- **Streaming Thông Minh — Không Tải Thừa Khi Mở Thư Mục**: Duyệt thư mục chỉ gọi metadata (`PROPFIND` cache `15s`), tích hợp tệp sentinel chặn QuickLook/Spotlight/FSEvents tự quét (`.ql_disablethumbnails`, `.metadata_never_index`, `.fseventsd/no_log`) cùng kho lưu đệm tệp rác Apple (`._*`, `.DS_Store`, `.TemporaryItems`). Tệp chỉ tải theo phân đoạn `Range` khi mở thực tế và hủy luồng ngay lập tức nếu đóng socket.
+- **Tự Hủy An Toàn 3 Tầng**: Tự gỡ mount khi ngắt kết nối, bấm Eject trong Finder (`⏏`), thoát app (`⌘Q`), sự cố crash (`-S` + `atexit`), và dọn sạch mount cũ khi khởi động lại.
 
-### 📝 3. Tính Năng "Open With" & Tự Động Đồng Bộ Khi Lưu
-- **Mở Tệp Remote Bằng Ứng Dụng macOS**: Menu chuột phải cung cấp tùy chọn `Open With Default App` và `Open With…` (tự động gợi ý ứng dụng phù hợp như VS Code, Xcode, Sublime Text, TextEdit, Preview,...).
-- **Auto-Sync Khi Bấm `⌘S`**: Giám sát file bằng Polling Timer (chu kỳ 2s). Khi người dùng nhấn Save (`⌘S`) trong editor ngoài, macSSH tự động upload tệp đã sửa và ghi đè trực tiếp lên server remote kèm log console.
+### ⚡ 3. Cài Đặt Nhanh (`Auto Connect` & `Auto Mount` FTP) — Không Reload Trang
+- **Nút Bật/Tắt Trực Tiếp Dưới Góc Phải Từng Kết Nối**:
+  - **`Auto Connect`** (mọi kết nối): Tự động kết nối phiên làm việc khi mở macSSH hoặc mở file cấu hình (chờ mở khóa Touch ID nếu bật App Lock).
+  - **`Auto Mount`** (**chỉ dành cho FTP**): Tự động mount thầm vào Finder khi mở app **và** tự động mount ngay mỗi khi bạn bấm **Connect** (qua menu chuột phải, Menu Bar, phím Return hoặc mở File Browser).
+- **Cập Nhật Tức Thì Không Nháy / Reload**: Bật/tắt `Auto Connect`, `Auto Mount`, `Saved` hoặc `SOCKS5` cập nhật trực tiếp tại chỗ mà không nạp lại danh sách hay mất vị trí cuộn.
 
-### 💻 4. SSH Terminal Toàn Diện & Zero-Latency
-- **Terminal Nội Bộ Siêu Mượt**: Tích hợp engine [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) hỗ trợ đầy đủ chuẩn `xterm-256color`, 60 FPS mượt mà.
-- **Zero-Latency Direct Feed**: Cấu hình PTY OpenSSH chuẩn, đưa trực tiếp luồng byte vào terminal trên Main Thread giúp ký tự gõ phản hồi tức thì.
-- **Khởi Chạy macOS Terminal Gốc**: Nút **"Open in macOS Terminal"** trên toolbar và context menu mở phiên SSH sang ứng dụng **Terminal.app** của macOS chỉ với 1 click qua AppleScript.
-- **Tự Động Nhập Lại Mật Khẩu**: Khi phát hiện lỗi sai mật khẩu hoặc xác thực SSH thất bại, ứng dụng tự động hiển thị sheet nhập lại mật khẩu trực quan.
+### 🌐 4. Native OpenSSH SOCKS5 Proxy & Chống Tiến Trình Mồ Côi
+- **Native OpenSSH Tunnel (`/usr/bin/ssh -D`)**: Khởi chạy headless qua `forkpty`, truyền mật khẩu qua kernel FD, ổn định tuyệt đối qua Sleep/Wake và App Nap.
+- **Localhost & Chia Sẻ LAN**: Hỗ trợ `127.0.0.1` hoặc `0.0.0.0` (tự hiển thị IP LAN), bật/tắt trực tiếp trên hàng kết nối và tự tắt an toàn + báo Toast 5s nếu trùng port.
+- **`NativeProcessRegistry`**: Theo dõi toàn bộ tiến trình con, tự dọn qua `atexit`, C signal handlers và quét tiến trình mồ côi khi khởi động.
 
-### 📊 5. Bảng Quản Lý Truyền Tải & Log Console SFTP
-- **Bảng Điều Khiển 3 Tab Dưới Đáy File Browser**:
-  - 📤 **Upload Queue**: Danh sách file đang tải lên, tiến trình %, dung lượng, **tốc độ realtime (MB/s, KB/s)**, **thời gian còn lại (ETA)**, nút Hủy.
-  - 📥 **Download Queue**: Theo dõi tiến trình tải xuống, tốc độ và ETA thời gian thực.
-  - 📜 **Log Console**: Luồng nhật ký chi tiết các lệnh SFTP với timestamp `[HH:mm:ss]`, phân cấp màu sắc (`[INFO]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`).
-- **In-Memory Sạch Sẽ**: Dữ liệu queue và log chỉ lưu trong RAM theo phiên làm việc, tự động giải phóng khi đóng cửa sổ.
+### 📂 5. File Browser Dual-Pane & Truyền Tải FTP Đa Luồng (Mặc Định 10 Luồng)
+- **Kéo Thả 2 Chiều & Ra Finder**: Kéo thả Local ⇄ Remote hoặc kéo thẳng tệp remote ra **Finder** (`NSFilePromiseProvider`), tải đệ quy thư mục con, nhập đường dẫn trực tiếp (`⌘L` / `⇧⌘G`), chọn ghi đè hàng loạt (`Replace`, `Replace All`, `Skip`, `Cancel`).
+- **Tùy Chỉnh Luồng FTP (`1–32` Luồng, Mặc Định `10`)**:
+  - Chỉnh trong **Settings**, riêng từng server FTP, hoặc ngay trên thanh hàng đợi (**`10 streams`** với preset `1 / 5 / 10 / 20 / 32`).
+  - Hỗ trợ tải 1 file lớn song song nhiều phân đoạn byte (`curl --range` cho file >= 4 MB), hiển thị tốc độ/ETA realtime cho cả upload & download, quét file off-main-thread và gom nhóm `*MKD` không gây khựng UI.
 
-### 🗂️ 6. Giao Diện 2 Cột Tinh Gọn & Thao Tác Nhanh
-- **2-Column NavigationSplitView**: Bố cục Sidebar (Thư mục, Cài đặt, Ủng hộ) và Danh sách kết nối hiện đại.
-- **Kéo Thả Phân Loại Server**: Kéo thả Server từ danh sách vào các Thư mục ở Sidebar (Cross-column Drag & Drop).
-- **Double-Click Kết Nối Nhanh**: Nhấp đúp vào bất kỳ server nào để tự động kết nối và mở ngay File Browser.
-- **Đồng Bộ Trạng Thái Tức Thì**: Chấm trạng thái màu xanh lá cập nhật realtime ngay khi kết nối thành công.
-- **Nút Thao Tác Nhanh**: Tích hợp sẵn 2 nút mở File Browser 📁 và mở Terminal `>_` ngay trên từng hàng server.
+### 👁️ 6. Trình Xem Tệp Đa Năng & "Edit With" Tự Upload Khi Lưu
+- **Universal File Viewer (SSH, FTP, SMB)**: Bấm icon mắt (`eye.fill`), menu chuột phải hoặc double-click để xem 5 định dạng:
+  - **Text / Code / Log**: Đánh số dòng, tìm kiếm, Copy, chuyển nhanh sang Editor.
+  - **Image**: Zoom `-` / `100%` / `+` / `Reset` kèm độ phân giải gốc.
+  - **PDF**: Cuộn trang & phóng to mượt mà trên `PDFKit`.
+  - **Audio / Video**: Phát trực tiếp `.mp4`, `.mov`, `.mp3`, `.wav`, `.m4a` bằng `AVKit` + nút `Open Externally`.
+  - **Binary Hex & ASCII**: Soi 4 KB đầu dạng 16-byte + `Open Externally`.
+- **"Edit With" Tự Đồng Bộ Khi Bấm `⌘S`**: Mở tệp bằng VS Code, Xcode, Sublime Text,... tự phát hiện lưu và upload ghi đè lên server (theo dõi trong Upload Queue).
 
-### 💾 7. Quản Lý Cấu Hình & Bảo Mật Độc Lập
-- **Xuất / Nạp Cấu Hình JSON**: Dễ dàng lưu (`⌘S`), lưu thành file mới (`⇧⌘S`), mở file (`⌘O`), hoặc tạo cấu hình mới (`⌘⌥N`).
-- **Tự Động Nhớ File Cấu Hình**: Ghi nhớ file config đang làm việc và tự động nạp lại khi khởi động ứng dụng.
-- **Cảnh Báo Lưu Khi Thoát**: Hộp thoại cảnh báo 3 lựa chọn (Lưu / Không lưu / Hủy) nếu có thay đổi chưa được ghi vào file.
-- **Mã Hóa Mật Khẩu AES-256-GCM**: Mật khẩu được mã hóa và lưu an toàn vào file cấu hình (nếu bật), không phụ thuộc vào Keychain hệ thống.
-- **Bảo Mật Sinh Trắc Học**: Hỗ trợ khóa ứng dụng bằng Touch ID hoặc mật khẩu máy Mac qua Apple LocalAuthentication.
+### 📊 7. Bảng Hàng Đợi Chi Tiết, Retry Lỗi & Khung Activity Logs
+- **Bộ Đếm, Lọc Trạng Thái & Thử Lại (Retry)**: Hai nút thống kê **`✓ Thành công`** / **`✕ Thất bại`** (bấm để lọc nhanh), chip lọc (`Tất cả`, `Đang chạy`, `Thành công`, `Thất bại`, `Đã hủy`), ô lọc tên tệp và nút **Thử lại** từng tệp hoặc **Thử lại lỗi** hàng loạt.
+- **Activity Log Console Trực Tiếp (`⌘⇧L`)**: Ghi nhận sự kiện hệ thống (tối đa 200 log mới nhất, 0 chi phí cấp phát chuỗi ở bản Release), lọc theo cấp độ/danh mục và kéo chỉnh chiều cao bằng con trỏ `↕︎`.
 
-### 📜 8. Khung Nhật Ký Hoạt Động Trực Tiếp (Activity Log Console)
-- **Ghi Nhận Nhật Ký Toàn Hệ Thống**: Stream realtime hoạt động hệ thống, kết nối SSH, vòng đời SOCKS5 proxy, truyền tệp SFTP và xác thực.
-- **Khung Điều Khiển Thu Gọn & Co Giãn**: Nút Checkbox tiện lợi (`⌘⇧L`) trên thanh công cụ với khả năng kéo thả chỉnh độ cao linh hoạt (`↕︎` native resize cursor).
-- **Bộ Lọc Nâng Cao & Tìm Kiếm**: Lọc nhật ký theo cấp độ (`INFO`, `SUCCESS`, `WARN`, `ERROR`), theo danh mục (`Network`, `SOCKS5`, `SFTP`, `Terminal`, `Auth`, `Database`, `App`), hoặc ô tìm kiếm realtime.
-- **Xuất & Kiểm Thử Nhanh**: Sao chép nhật ký vào Clipboard với 1 click, xóa sạch lịch sử hoặc phát log thử nghiệm.
-
-### 🌐 9. Hỗ Trợ Đa Ngôn Ngữ (Localization L10N)
-- Hệ thống đa ngôn ngữ theo chuẩn key-based với cơ chế tự động Fallback Tiếng Anh:
-  - 🇬🇧 Tiếng Anh (**English** - Default Fallback)
-  - 🇻🇳 **Tiếng Việt**
-  - 🇨🇳 Tiếng Trung Giản thể (**简体中文**)
-  - 🇹🇼 Tiếng Trung Phồn thể (**繁體中文**)
-  - 🇷🇺 Tiếng Nga (**Русский**)
-  - 🇫🇷 Tiếng Pháp (**Français**)
-- Đổi ngôn ngữ trực tiếp trong Settings và có hiệu lực ngay lập tức.
+### 📡 8. Giám Sát Mạng Real-Time & Trải Nghiệm Native macOS
+- **`NWPathMonitor` & Progressive Auto-Reconnect**: Báo **Mất kết nối** đỏ nhấp nháy ngay khi đứt mạng kèm macOS notification tự ẩn sau 5s; khi có mạng lại tự dọn session cũ và kết nối lại (`0s → 5s → 10s`), đồng thời làm mới session của các ổ đĩa Finder đang mount.
+- **Giao Diện Sáng / Tối 1 Click & Menu Đầy Đủ**: Nút icon đổi nhanh **Sáng ↔ Tối** góc phải Toolbar (`System` / `Light` / `Dark`), Context Menu khi chuột phải **vùng trống** Sidebar (`New Folder`) & danh sách (`New Connection`), đồng bộ đầy đủ **macOS Top Menu Bar** (`File`, `Connection`, `View`), ẩn icon Dock khi thu gọn xuống Menu Bar, khóa **Touch ID**, mã hóa mật khẩu **AES-256-GCM** vào file JSON và hỗ trợ **6 ngôn ngữ** (EN, VI, ZH-Hans, ZH-Hant, RU, FR).
 
 ---
 
@@ -112,7 +94,7 @@
 | Quản Lý Kết Nối & Thư Mục | Menu Chuột Phải & Thao Tác Nhanh |
 |:---:|:---:|
 | ![Connection Manager](../screens/screen-1.png) | ![Context Menu](../screens/screen-2.png) |
-| *Giao diện 2 cột tinh gọn, phân nhóm thư mục, kết nối nhanh* | *Menu chuột phải: SOCKS5 proxy, Terminal, SFTP* |
+| *Giao diện 2 cột tinh gọn, phân nhóm thư mục, cài đặt nhanh* | *Menu chuột phải: Mount Finder, SOCKS5 proxy, Terminal, SFTP* |
 
 | Trình Duyệt Tệp Song Song & Hàng Đợi | Giả Lập SSH Terminal Tích Hợp |
 |:---:|:---:|

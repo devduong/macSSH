@@ -35,15 +35,26 @@ nonisolated final class LocalBonjourHost: @unchecked Sendable {
 
     static func register(preferredName: String) -> LocalBonjourHost? {
         let label = sanitizeDNSLabel(preferredName)
-        let fqdn = "\(label).local"
+        let candidates: [String] = resolvesToExternalHost(label)
+            ? ["\(label).local"]
+            : [label, "\(label).local"]
 
+        for candidate in candidates {
+            if let host = registerCandidate(candidate) {
+                return host
+            }
+        }
+        return nil
+    }
+
+    private static func registerCandidate(_ hostname: String) -> LocalBonjourHost? {
         var connectionRef: DNSServiceRef?
         guard DNSServiceCreateConnection(&connectionRef) == kDNSServiceErr_NoError,
               let sdRef = connectionRef else {
             return nil
         }
 
-        let host = LocalBonjourHost(hostname: fqdn, sdRef: sdRef)
+        let host = LocalBonjourHost(hostname: hostname, sdRef: sdRef)
         DNSServiceSetDispatchQueue(sdRef, host.queue)
 
         var recordRef: DNSRecordRef?
@@ -54,7 +65,7 @@ nonisolated final class LocalBonjourHost: @unchecked Sendable {
             &recordRef,
             DNSServiceFlags(kDNSServiceFlagsShared),
             loIndex,
-            fqdn,
+            hostname,
             UInt16(kDNSServiceType_A),
             UInt16(kDNSServiceClass_IN),
             4,
@@ -69,9 +80,9 @@ nonisolated final class LocalBonjourHost: @unchecked Sendable {
             return nil
         }
 
-        // Wait briefly (up to 600ms) for mDNSResponder to serve the new lo0 A record
-        for _ in 0..<20 {
-            if resolvesToLoopback(fqdn) {
+        // Wait briefly (up to 450ms) for mDNSResponder to serve the new lo0 A record
+        for _ in 0..<15 {
+            if resolvesToLoopback(hostname) {
                 return host
             }
             usleep(30_000)
@@ -120,12 +131,21 @@ nonisolated final class LocalBonjourHost: @unchecked Sendable {
     }
 
     private static func resolvesToLoopback(_ host: String) -> Bool {
+        resolveIPv4(host) == "127.0.0.1"
+    }
+
+    private static func resolvesToExternalHost(_ host: String) -> Bool {
+        guard let ip = resolveIPv4(host) else { return false }
+        return ip != "127.0.0.1"
+    }
+
+    private static func resolveIPv4(_ host: String) -> String? {
         var hints = addrinfo()
         hints.ai_family = AF_INET
         hints.ai_socktype = SOCK_STREAM
         var res: UnsafeMutablePointer<addrinfo>?
         let rc = getaddrinfo(host, nil, &hints, &res)
-        guard rc == 0, let first = res else { return false }
+        guard rc == 0, let first = res else { return nil }
         defer { freeaddrinfo(res) }
         var buf = [CChar](repeating: 0, count: 64)
         let nameRC = getnameinfo(
@@ -137,7 +157,7 @@ nonisolated final class LocalBonjourHost: @unchecked Sendable {
             0,
             NI_NUMERICHOST
         )
-        return nameRC == 0 && String(cString: buf) == "127.0.0.1"
+        return nameRC == 0 ? String(cString: buf) : nil
     }
 }
 
@@ -206,13 +226,15 @@ final class FinderMountManager: ObservableObject {
 
     // MARK: - Mount / Open / Unmount
 
-    func mount(connection: Connection, password: String) async throws {
+    func mount(connection: Connection, password: String, openFinderWindow: Bool = true) async throws {
         guard connection.connectionType.supportsFinderMount else {
             throw AppError.sftpOperationFailed("Finder mount is supported for FTP and SFTP connections.")
         }
 
         if let existing = mountedDrives[connection.id] {
-            openURLInFinder(existing.initialOpenURL, fallback: existing.mountPointURL)
+            if openFinderWindow {
+                openURLInFinder(existing.initialOpenURL, fallback: existing.mountPointURL)
+            }
             return
         }
 
@@ -340,12 +362,32 @@ final class FinderMountManager: ObservableObject {
             duration: 4.0
         )
 
-        openURLInFinder(initialOpenURL, fallback: mountPointURL)
+        if openFinderWindow {
+            openURLInFinder(initialOpenURL, fallback: mountPointURL)
+        }
     }
 
     func openInFinder(connectionId: UUID) {
         guard let info = mountedDrives[connectionId] else { return }
         openURLInFinder(info.initialOpenURL, fallback: info.mountPointURL)
+    }
+
+    /// Automatically mounts an FTP connection in Finder when connecting if `autoMount` is enabled.
+    func autoMountOnConnectIfEnabled(for connection: Connection, password: String) async {
+        guard connection.connectionType.supportsAutoMount, connection.autoMount else { return }
+        guard !isMounted(connection.id), !isMounting(connection.id) else { return }
+        do {
+            try await mount(connection: connection, password: password, openFinderWindow: false)
+            logSuccess("[AutoMount] Mounted '\(connection.name)' in Finder", category: .sftp)
+        } catch {
+            logError("[AutoMount] Failed for '\(connection.name)': \(error.localizedDescription)", category: .network)
+            ToastManager.shared.show(
+                title: L10n.tr("finder_mount_failed"),
+                message: "\(connection.name): \(AppError.from(error).localizedDescription)",
+                type: .error,
+                duration: 5.0
+            )
+        }
     }
 
     func unmount(connectionId: UUID, showToast: Bool = true) async {
@@ -429,29 +471,42 @@ final class FinderMountManager: ObservableObject {
 
     nonisolated static func cleanupOrphanMounts() {
         DispatchQueue.global(qos: .utility).async {
-            let baseDir = mountsBaseDirectory()
-            let basePath = baseDir.standardizedFileURL.path
+            performOrphanCleanup()
+        }
+    }
 
-            // 1. Unmount any active OS webdav mounts residing inside macSSH/Mounts
-            let currentlyMounted = listCurrentWebDAVMounts(under: basePath)
-            for mountPath in currentlyMounted {
-                unmountPathSync(mountPath)
+    nonisolated static func cleanupOrphanMountsAndWait() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                performOrphanCleanup()
+                continuation.resume()
             }
+        }
+    }
 
-            // 2. Remove stale mount subdirectories that are no longer mount points (rmdir only removes empty directories)
-            if let contents = try? FileManager.default.contentsOfDirectory(at: baseDir, includingPropertiesForKeys: nil) {
-                for url in contents {
-                    if !isPathCurrentlyMounted(url.path) {
-                        Darwin.rmdir(url.path)
-                    }
+    nonisolated private static func performOrphanCleanup() {
+        let baseDir = mountsBaseDirectory()
+        let basePath = baseDir.standardizedFileURL.path
+
+        // 1. Unmount any active OS webdav mounts residing inside macSSH/Mounts
+        let currentlyMounted = listCurrentWebDAVMounts(under: basePath)
+        for mountPath in currentlyMounted {
+            unmountPathSync(mountPath)
+        }
+
+        // 2. Remove stale mount subdirectories that are no longer mount points (rmdir only removes empty directories)
+        if let contents = try? FileManager.default.contentsOfDirectory(at: baseDir, includingPropertiesForKeys: nil) {
+            for url in contents {
+                if !isPathCurrentlyMounted(url.path) {
+                    Darwin.rmdir(url.path)
                 }
             }
+        }
 
-            // 3. Remove orphaned WebDAV temp staging/cache folders
-            let webdavTmp = FileManager.default.temporaryDirectory.appendingPathComponent("macSSH_WebDAV", isDirectory: true)
-            if FileManager.default.fileExists(atPath: webdavTmp.path) {
-                try? FileManager.default.removeItem(at: webdavTmp)
-            }
+        // 3. Remove orphaned WebDAV temp staging/cache folders
+        let webdavTmp = FileManager.default.temporaryDirectory.appendingPathComponent("macSSH_WebDAV", isDirectory: true)
+        if FileManager.default.fileExists(atPath: webdavTmp.path) {
+            try? FileManager.default.removeItem(at: webdavTmp)
         }
     }
 

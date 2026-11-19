@@ -5,7 +5,7 @@
 <h1 align="center">macSSH</h1>
 
 <p align="center">
-  <strong>Gestionnaire de connexions SSH, navigateur SFTP double panneau, émulateur de terminal et proxy SOCKS5 dynamique 100% natif pour macOS</strong>
+  <strong>Gestionnaire natif macOS pour SSH / FTP / SMB, montage Finder lecture-écriture, terminal et proxy SOCKS5 dynamique</strong>
 </p>
 
 <p align="center">
@@ -40,84 +40,56 @@
 
 > [!IMPORTANT]
 > **macSSH est conçu spécifiquement pour Apple macOS.**
-> Il s'agit d'une application 100% native développée avec **SwiftUI**, **AppKit**, **SwiftData** et les frameworks de sécurité Apple **LocalAuthentication (Touch ID)** et **Keychain**.
-> 
+> Il s'agit d'une application 100% native développée avec **SwiftUI**, **AppKit**, **SwiftData**, **Network.framework**, **AVKit**, **PDFKit**, **NetFS** et **LocalAuthentication (Touch ID)**.
+>
 > L'application **NE prend PAS en charge** Windows ni Linux — garantissant une réactivité native instantanée, une latence nulle et une empreinte mémoire minimale.
 
 ---
 
 ## 🌟 Présentation du projet
 
-**macSSH** fournit une solution complète et native pour les développeurs, ingénieurs DevOps et administrateurs système gérant des serveurs distants sur Mac :
+**macSSH** fournit une solution complète et native pour les développeurs, ingénieurs DevOps et administrateurs système sur Mac :
 
-- **Navigateur SFTP double panneau (Dual-Pane)** : Glisser-déposer (Drag & Drop) bidirectionnel intuitif entre les panneaux local et distant, avec glisser-déposer direct vers le Finder de macOS.
-- **Terminal SSH haute performance** : Émulateur de terminal fluide `xterm-256color` basé sur SwiftTerm (60 FPS), flux direct de frappe sans latence (Zero-latency Direct Feed) et lancement direct dans l'application native `Terminal.app` de macOS en 1 clic.
-- **Proxy SOCKS5 dynamique via tunnel SSH** : Serveur proxy SOCKS5 intégré routé via la session SSH. Prise en charge de Localhost (`127.0.0.1`) ou du partage sur tout le réseau local (`0.0.0.0`) avec bascule rapide et résolution intelligente des conflits de ports.
-- **Éditeur externe « Ouvrir avec » et synchronisation automatique** : Ouvrez vos fichiers distants dans n'importe quel éditeur macOS (VS Code, TextEdit, Xcode, etc.) et enregistrez (`⌘S`) pour téléverser et remplacer automatiquement sur le serveur.
-- **Présence dans la barre de menus et exécution en arrière-plan** : Reste accessible dans la barre de menus de macOS, maintenant vos tunnels SSH et proxies actifs même après la fermeture de toutes les fenêtres.
-- **Configuration autonome et sécurité** : Export/import de configurations au format JSON, mémorisation du dernier fichier utilisé, verrouillage par Touch ID et chiffrement matériel des mots de passe en AES-256-GCM.
+- **Multi-protocoles (`SSH`, `FTP`, `SMB`)** : Gérez vos serveurs **SSH/SFTP**, **FTP/FTPS** et **SMB/CIFS** avec ports par défaut, icônes/couleurs dédiées, connexion anonyme/invité et découverte automatique des partages SMB.
+- **Montage Finder lecture-écriture (FTP & SFTP)** : Montez vos serveurs FTP/FTPS et SFTP directement dans le **Finder macOS** comme des volumes natifs via un pont local WebDAV Class 2 (`SwiftNIO`) — **sans macFUSE, ni FUSE-T, ni `sudo`**.
+- **Navigateur double panneau & FTP multi-flux** : Glisser-déposer bidirectionnel (Local ⇄ Distant ⇄ Finder), transferts récursifs de dossiers et **transferts FTP multi-flux configurables (10 par défaut, jusqu'à 32)** avec téléchargement parallèle par plages d'octets.
+- **Visionneuse universelle intégrée** : Prévisualisez texte/code, images, PDF, audio/vidéo (`AVKit`) et hexadécimal/ASCII binaire directement dans macSSH pour SSH, FTP et SMB.
+- **Réglages rapides (`Connexion auto` & `Montage auto` FTP)** : Boutons instantanés en bas à droite de chaque ligne sans rechargement de page, automatisation au démarrage / à l'ouverture de config et montage automatique FTP lors du clic sur **Connect**.
+- **Terminal OpenSSH natif & Proxy SOCKS5** : Émulateur `xterm-256color` 60 FPS, lancement 1-clic dans `Terminal.app`, tunnels `/usr/bin/ssh -D` (`127.0.0.1` ou LAN `0.0.0.0`) avec nettoyage garanti des processus enfants.
+- **Surveillance réseau en temps réel & Barre de menus** : Détection `NWPathMonitor`, reconnexion progressive et masquage automatique du Dock lorsque toutes les fenêtres sont fermées.
 
 ---
 
 ## ✨ Fonctionnalités clés
 
-### 🌐 1. Proxy SOCKS5 dynamique (SSH Tunnel)
-- **Tunnel proxy automatique** : Démarre un serveur proxy SOCKS5 routant le trafic réseau via la connexion SSH active.
-- **Partage local et réseau (LAN)** : Écoute sur `127.0.0.1` (ce Mac uniquement) ou `0.0.0.0` (partage avec les autres appareils du réseau local avec affichage automatique de l'adresse IP).
-- **Badge d'activation rapide** : Badge violet SOCKS5 sur chaque ligne de serveur permettant d'activer ou de désactiver le proxy en un clic.
-- **Gestion des conflits de ports** : Si le port est déjà utilisé (`Address already in use`), macSSH désactive le proxy en toute sécurité et affiche une notification Toast de 5 secondes sans interrompre la session SSH principale.
+### 🔌 1. Gestionnaire multi-protocoles (`SSH` / `FTP` / `SMB`)
+- **Sélecteur `SSH | FTP | SMB`** : Applique automatiquement les ports par défaut (`22` / `21` / `445`), l'icône et la couleur du protocole.
+- **Moteur FTP / FTPS** : Basé sur `/usr/bin/curl` avec identifiants transmis en toute sécurité par `stdin`, prise en charge des listings Unix & Windows/IIS et de l'accès `anonymous`.
+- **Moteur SMB / CIFS** : Basé sur `NetFS.framework` et `smbutil` avec découverte des partages réseau et démontage automatique à la déconnexion.
 
-### 📂 2. Navigateur SFTP double panneau et glisser-déposer
-- **Disposition double panneau** : Panneau local (Mac) à gauche et panneau distant (serveur) à droite.
-- **Glisser-déposer bidirectionnel** :
-  - Glissez des fichiers/dossiers du panneau local vers le distant pour les téléverser.
-  - Glissez du distant vers le local (ou vers un sous-dossier) pour les télécharger instantanément.
-  - Glissez directement des fichiers distants vers le **Finder de macOS** via `NSFilePromiseProvider`.
-- **Téléchargement récursif de dossiers** : Crée automatiquement l'arborescence complète et télécharge tous les sous-dossiers.
-- **Barre de saisie directe du chemin** : Saisissez ou collez des chemins absolus (`/var/www`, `~/.config`) avec les raccourcis `⌘L` ou `⇧⌘G`.
-- **Confirmation d'écrasement sécurisée** : Boîte de dialogue native `NSAlert` pour choisir « Remplacer (Replace) » ou « Annuler (Cancel) ».
-- **Interface optimisée** : Suppression des barres de défilement horizontal, ajustement dynamique des colonnes et suppression groupée.
+### 💽 2. Montage Finder lecture-écriture sans pilote (Loopback WebDAV)
+- **Accès complet dans le Finder** : Pont local **SwiftNIO WebDAV Class 2** et `/sbin/mount_webdav -S -o browse`, sans kext tiers ni privilèges root.
+- **Nom du serveur affiché sans `.local`** : Résolution loopback locale sur `lo0` via `dnssd` pour afficher directement le **nom** du serveur dans la barre latérale du Finder au lieu de `127.0.0.1` ou `Nom.local`.
+- **Navigation fluide sans téléchargements inutiles** : Cache des répertoires (`15s`), sentinelles bloquant l'exploration QuickLook/Spotlight/FSEvents (`.ql_disablethumbnails`, `.metadata_never_index`, `.fseventsd/no_log`) et gestion locale des fichiers système macOS (`._*`, `.DS_Store`, `.TemporaryItems`) ; streaming à la demande par plages d'octets (`Range`) avec annulation immédiate si la connexion ferme.
+- **Démontage automatique en 3 niveaux** : À la déconnexion, sur éjection depuis le Finder (`⏏`), en quittant (`⌘Q`), en cas de crash (`-S` + `atexit`), et nettoyage des montages orphelins au lancement.
 
-### 📝 3. Éditeur externe « Ouvrir avec » et synchronisation lors de la sauvegarde
-- **Ouvrir avec n'importe quelle application Mac** : Menu contextuel `Open With Default App` et `Open With…` (détecte VS Code, Xcode, Sublime Text, TextEdit, etc.).
-- **Téléversement automatique sur `⌘S`** : Surveillance par timer (cycle de 2s). Dès que vous appuyez sur Enregistrer (`⌘S`) dans votre éditeur, le fichier modifié est renvoyé directement sur le serveur distant avec journalisation en direct.
+### ⚡ 3. Réglages rapides (`Connexion auto` & `Montage auto` FTP)
+- **Boutons en bas à droite de chaque élément** :
+  - **`Connexion auto`** (tous protocoles) : Connecte automatiquement la session au lancement ou à l'ouverture d'une configuration.
+  - **`Montage auto`** (**FTP uniquement**) : Monte silencieusement le disque dans le Finder au démarrage **et** monte automatiquement dès que vous cliquez sur **Connecter**.
+- **Mise à jour instantanée sans rechargement** : Aucun scintillement ni réinitialisation de la liste lors du basculement ; prise en compte du déverrouillage Touch ID au démarrage.
 
-### 💻 4. Terminal SSH fluide et sans latence
-- **Émulateur SwiftTerm** : Rendu fluide à 60 FPS, prise en charge complète du standard `xterm-256color`.
-- **Zero-Latency Direct Feed** : Modes OpenSSH PTY avec flux direct sur le thread principal pour éliminer tout délai de saisie au clavier.
-- **Lancement dans le terminal natif de macOS** : Bouton **« Open in macOS Terminal »** ouvrant la session SSH dans l'application `Terminal.app` via AppleScript.
-- **Feuille de saisie de mot de passe** : Détection automatique des erreurs d'authentification et affichage d'une feuille pour ressaisir facilement vos identifiants.
+### 🌐 4. Proxy SOCKS5 OpenSSH natif & cycle de vie des processus
+- **Tunnel headless `/usr/bin/ssh -D`** : Via `forkpty` (compatible veille/réveil macOS), partage `127.0.0.1` ou réseau local `0.0.0.0`, détection de conflits de ports et gestion centralisée `NativeProcessRegistry` (`atexit` + gestionnaires de signaux).
 
-### 📊 5. Gestionnaire de transferts et console de journalisation
-- **Panneau inférieur à 3 onglets** :
-  - 📤 **File d'attente d'envoi (Upload Queue)** : Affiche la progression en %, le volume transféré, **la vitesse en temps réel (MB/s, KB/s)**, **le temps restant estimé (ETA)** et un bouton d'annulation.
-  - 📥 **File d'attente de téléchargement (Download Queue)** : Suivi en direct du téléchargement des fichiers.
-  - 📜 **Console de logs (Log Console)** : Flux des opérations SFTP horodaté `[HH:mm:ss]` avec coloration par niveau (`[INFO]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`).
-- **Fonctionnement en mémoire vive** : Les données de transfert et de journalisation ne sont conservées qu'en RAM pendant la session et libérées à la fermeture de la fenêtre.
+### 📂 5. Navigateur double panneau, FTP multi-flux & Visionneuse universelle
+- **Glisser-déposer bidirectionnel & FTP multi-flux (`1–32`, défaut `10`)** : Réglable dans les Réglages, par connexion ou en direct dans la file d'attente ; transferts récursifs de dossiers, gestion groupée des doublons (`Replace`, `Replace All`, `Skip`, `Cancel`) et téléchargements multi-segments (`--range` dès `4 MB`).
+- **Visionneuse intégrée (SSH, FTP, SMB)** : 5 modes — Texte/Code, Image (zoom), PDF (`PDFKit`), Audio/Vidéo (`AVKit`) et inspecteur binaire Hex/ASCII + **Edit With** synchronisé automatiquement lors de l'enregistrement (`⌘S`).
 
-### 🗂️ 6. Disposition élégante à 2 colonnes
-- **Structure 2 colonnes** : Barre latérale (Dossiers, Réglages, Dons, À propos) et liste des connexions.
-- **Glisser-déposer entre colonnes** : Classez vos serveurs en les faisant glisser directement dans les dossiers de la barre latérale.
-- **Connexion rapide par double-clic** : Double-cliquez sur un serveur pour vous connecter et ouvrir le navigateur de fichiers.
-- **Indicateur de statut en temps réel** : Pastille verte indiquant instantanément la connexion active.
-- **Boutons d'action rapide** : Boutons toujours visibles pour ouvrir le navigateur SFTP 📁 et le terminal `>_` sur chaque ligne.
-
-### 💾 7. Configuration autonome et sécurité biométrique
-- **Fichiers de configuration JSON** : Enregistrer (`⌘S`), Enregistrer sous (`⇧⌘S`), Ouvrir (`⌘O`), Nouvelle configuration (`⌘⌥N`).
-- **Mémorisation automatique** : Réouvre automatiquement le dernier fichier de configuration au démarrage.
-- **Avertissement de fermeture** : Alerte de sauvegarde lors de la fermeture avec modifications non enregistrées.
-- **Chiffrement AES-256-GCM** : Les mots de passe peuvent être chiffrés et enregistrés dans la configuration sans dépendre du trousseau Keychain.
-- **Verrouillage par Touch ID** : Protégez l'accès à l'application avec Touch ID ou le mot de passe de votre Mac.
-
-### 🌐 8. Architecture multilingue (L10N)
-- Prise en charge multilingue intégrée avec mécanisme de repli (Fallback) automatique en anglais :
-  - 🇬🇧 Anglais (**English** - repli par défaut)
-  - 🇻🇳 Vietnamien (**Tiếng Việt**)
-  - 🇨🇳 Chinois simplifié (**简体中文**)
-  - 🇹🇼 Chinois traditionnel (**繁體中文**)
-  - 🇷🇺 Russe (**Русский**)
-  - 🇫🇷 **Français**
-- Changement de langue instantané dans les Réglages sans redémarrage de l'application.
+### 📊 6. File de transferts avancée, Logs en direct & Ergonomie macOS
+- **Compteurs, filtres et relance** : Badges cliquables Réussis / Échoués, filtres par statut et nom, boutons **Réessayer** et **Réessayer les échecs**, plus console **Logs (`⌘⇧L`)** limitée aux 200 dernières entrées avec redimensionnement `↕︎`.
+- **Surveillance Internet & Reconnexion progressive** : `NWPathMonitor` avec alerte visuelle clignotante, notification macOS (5s) et reconnexion automatique (`0s → 5s → 10s`) avec rafraîchissement des volumes Finder.
+- **Intégration macOS complète** : Bascule **Clair ↔ Sombre** en 1 clic dans la barre d'outils, menus contextuels sur zones vides, barre de menus supérieure complète, masquage automatique du Dock en arrière-plan, **Touch ID**, chiffrement **AES-256-GCM** et **6 langues**.
 
 ---
 
@@ -126,12 +98,12 @@
 | Gestionnaire de connexions | Menu contextuel et actions |
 |:---:|:---:|
 | ![Connection Manager](../screens/screen-1.png) | ![Context Menu](../screens/screen-2.png) |
-| *Interface épurée à 2 colonnes, gestion par dossiers, connexion rapide* | *Menu clic-droit : proxy SOCKS5, Terminal, explorateur SFTP* |
+| *Interface 2 colonnes, dossiers, réglages rapides* | *Menu clic-droit : Montage Finder, SOCKS5, Terminal, Fichiers* |
 
-| Explorateur SFTP double panneau & File d'attente | Terminal SSH intégré |
+| Explorateur double panneau & File d'attente | Terminal SSH intégré |
 |:---:|:---:|
 | ![File Browser](../screens/screen-3.png) | ![SSH Terminal](../screens/screen-4.png) |
-| *Glisser-déposer bidirectionnel, barre de chemin direct, vitesse et ETA* | *Émulateur xterm-256color sans latence* |
+| *Glisser-déposer bidirectionnel, chemin direct, vitesse et ETA* | *Émulateur xterm-256color sans latence* |
 
 ---
 
@@ -220,7 +192,7 @@ Vous pouvez envoyer des jetons compatibles avec le réseau **BNB Smart Chain (BE
 ## 🙏 Remerciements et Crédits (Acknowledgments)
 
 - 🌟 **Un immense merci à [macnev2013](https://github.com/macnev2013)** — L'auteur de `macSCP` et `anySCP`. Merci infiniment pour ses superbes idées initiales et la base du projet qui ont grandement inspiré la conception de **macSSH**.
-- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — Bibliothèques fondamentales pour les protocoles SSH & SFTP.
+- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO](https://github.com/apple/swift-nio) / [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — Bibliothèques fondamentales pour les protocoles SSH, SFTP et WebDAV.
 - 💻 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (Miguel de Icaza) — Puissante bibliothèque d'émulation de terminal pour macOS.
 - 🎨 [SF Symbols](https://developer.apple.com/sf-symbols/) (Apple) — Système officiel d'icônes et de symboles macOS.
 

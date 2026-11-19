@@ -353,7 +353,7 @@ actor SMBSession: SFTPSessionProtocol {
     }
 
     func executeCommand(_ command: String) async throws -> String {
-        throw AppError.sftpOperationFailed("Shell execution is only available on SFTP (SSH) servers.")
+        throw AppError.sftpOperationFailed("Shell execution is only available on SSH servers.")
     }
 
     // MARK: - Private Mounting & Resolution Helpers

@@ -63,6 +63,10 @@ struct ConnectionFormSheet: View {
     @State private var useCustomFTPStreams: Bool = false
     @State private var ftpMaxStreams: Int = FTPTransferConstants.defaultMaxStreams
 
+    // Startup automation quick settings
+    @State private var autoConnect: Bool = false
+    @State private var autoMount: Bool = false
+
     init(
         mode: ConnectionFormMode,
         savedPassword: String? = nil,
@@ -129,6 +133,9 @@ struct ConnectionFormSheet: View {
                         }
                         if !newType.supportsSocksProxy {
                             socksProxyEnabled = false
+                        }
+                        if !newType.supportsAutoMount {
+                            autoMount = false
                         }
                     }
 
@@ -222,6 +229,14 @@ struct ConnectionFormSheet: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                // Startup Automation
+                Section(L10n.tr("startup_automation")) {
+                    Toggle(L10n.tr("auto_connect_on_launch"), isOn: $autoConnect)
+                    if connectionType.supportsAutoMount {
+                        Toggle(L10n.tr("auto_mount_on_launch"), isOn: $autoMount)
                     }
                 }
 
@@ -342,6 +357,8 @@ struct ConnectionFormSheet: View {
                 useCustomFTPStreams = false
                 ftpMaxStreams = ftpSettings.maxConcurrentStreams
             }
+            autoConnect = connection.autoConnect
+            autoMount = connection.connectionType.supportsAutoMount && connection.autoMount
 
             if let saved = savedPassword {
                 password = saved
@@ -373,6 +390,7 @@ struct ConnectionFormSheet: View {
         let resolvedFtpStreams: Int? = (connectionType == .ftp && useCustomFTPStreams)
             ? FTPTransferSettings.clamped(ftpMaxStreams)
             : nil
+        let resolvedAutoMount = connectionType.supportsAutoMount && autoMount
 
         let connection: Connection
         if case .edit(let existing) = mode {
@@ -395,7 +413,9 @@ struct ConnectionFormSheet: View {
                 socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
                 socksProxyAllowLAN: socksProxyAllowLAN,
-                ftpMaxStreams: resolvedFtpStreams
+                ftpMaxStreams: resolvedFtpStreams,
+                autoConnect: autoConnect,
+                autoMount: resolvedAutoMount
             )
         } else {
             connection = Connection(
@@ -414,7 +434,9 @@ struct ConnectionFormSheet: View {
                 socksProxyEnabled: resolvedSocksEnabled,
                 socksProxyPort: socksPortNumber,
                 socksProxyAllowLAN: socksProxyAllowLAN,
-                ftpMaxStreams: resolvedFtpStreams
+                ftpMaxStreams: resolvedFtpStreams,
+                autoConnect: autoConnect,
+                autoMount: resolvedAutoMount
             )
         }
 

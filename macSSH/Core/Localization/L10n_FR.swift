@@ -259,6 +259,25 @@ public enum L10n_FR {
         "mounted_in_finder": "Monté dans le Finder",
         "finder_mount_success": "Monté dans le Finder",
         "finder_mount_failed": "Échec du montage Finder",
-        "finder_unmounted": "Démonté du Finder"
+        "finder_unmounted": "Démonté du Finder",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "Automatisation au démarrage",
+        "auto_connect": "Connexion auto",
+        "auto_mount": "Montage auto",
+        "auto_connect_on_launch": "Connexion automatique au lancement",
+        "auto_mount_on_launch": "Montage Finder automatique au lancement",
+        "auto_connect_on_help": "Connexion auto ACTIVÉE — connexion automatique au démarrage de macSSH (cliquer pour désactiver)",
+        "auto_connect_off_help": "Connexion auto DÉSACTIVÉE — cliquer pour activer la connexion automatique au démarrage",
+        "auto_mount_on_help": "Montage auto ACTIVÉ — montage dans le Finder automatique au démarrage (cliquer pour désactiver)",
+        "auto_mount_off_help": "Montage auto DÉSACTIVÉ — cliquer pour activer le montage automatique dans le Finder",
+        "enable_auto_connect": "Activer la connexion auto",
+        "disable_auto_connect": "Désactiver la connexion auto",
+        "enable_auto_mount": "Activer le montage auto Finder",
+        "disable_auto_mount": "Désactiver le montage auto Finder",
+        "auto_save_password_hint_title": "Enregistrement du mot de passe recommandé",
+        "auto_save_password_hint_msg": "Activez « Saved » et enregistrez la configuration (⌘S) pour lancer « %@ » automatiquement au démarrage.",
+        "auto_startup_missing_password_title": "Automatisation ignorée",
+        "auto_startup_missing_password": "Aucun mot de passe enregistré pour : %@"
     ]
 }

@@ -20,6 +20,7 @@ extension Notification.Name {
     static let aboutRequested = Notification.Name("aboutRequested")
     static let toggleLogPanelRequested = Notification.Name("toggleLogPanelRequested")
     static let focusConnectionSearch = Notification.Name("focusConnectionSearch")
+    static let appDidUnlock = Notification.Name("appDidUnlock")
 }
 
 struct AppSettingsData: Codable, Sendable {
@@ -229,6 +230,7 @@ final class ConfigurationService: ObservableObject {
 
         try await importFromJSON(fileURL: selectedURL, replaceExisting: true)
         currentFileURL = selectedURL
+        await StartupAutomationService.shared.runAutomation(reason: "configuration opened")
         return true
     }
 

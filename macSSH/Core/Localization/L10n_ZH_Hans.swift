@@ -259,6 +259,25 @@ public enum L10n_ZH_Hans {
         "mounted_in_finder": "已挂载到 Finder",
         "finder_mount_success": "已挂载到 Finder",
         "finder_mount_failed": "Finder 挂载失败",
-        "finder_unmounted": "已从 Finder 卸载"
+        "finder_unmounted": "已从 Finder 卸载",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "启动自动化",
+        "auto_connect": "自动连接",
+        "auto_mount": "自动挂载",
+        "auto_connect_on_launch": "启动时自动连接",
+        "auto_mount_on_launch": "启动时自动挂载到 Finder",
+        "auto_connect_on_help": "自动连接已开启 — 启动 macSSH 时自动连接（点击关闭）",
+        "auto_connect_off_help": "自动连接已关闭 — 点击以在启动 macSSH 时自动连接",
+        "auto_mount_on_help": "自动挂载已开启 — 启动 macSSH 时自动挂载到 Finder（点击关闭）",
+        "auto_mount_off_help": "自动挂载已关闭 — 点击以在启动 macSSH 时自动挂载到 Finder",
+        "enable_auto_connect": "开启自动连接",
+        "disable_auto_connect": "关闭自动连接",
+        "enable_auto_mount": "开启 Finder 自动挂载",
+        "disable_auto_mount": "关闭 Finder 自动挂载",
+        "auto_save_password_hint_title": "建议保存密码",
+        "auto_save_password_hint_msg": "请开启“Saved”并保存配置文件 (⌘S)，以便“%@”在启动时自动运行。",
+        "auto_startup_missing_password_title": "已跳过启动自动化",
+        "auto_startup_missing_password": "以下连接未保存密码：%@"
     ]
 }

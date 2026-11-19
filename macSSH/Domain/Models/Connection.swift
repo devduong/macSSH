@@ -43,6 +43,10 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
     // FTP Multi-Stream Transfer Concurrency (nil = use global default, 10)
     var ftpMaxStreams: Int?
 
+    // Startup automation quick settings
+    var autoConnect: Bool
+    var autoMount: Bool
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -62,7 +66,9 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         socksProxyEnabled: Bool = false,
         socksProxyPort: Int = 1080,
         socksProxyAllowLAN: Bool = false,
-        ftpMaxStreams: Int? = nil
+        ftpMaxStreams: Int? = nil,
+        autoConnect: Bool = false,
+        autoMount: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -83,6 +89,34 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
         self.socksProxyPort = socksProxyPort
         self.socksProxyAllowLAN = socksProxyAllowLAN
         self.ftpMaxStreams = ftpMaxStreams
+        self.autoConnect = autoConnect
+        self.autoMount = autoMount
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decodeIfPresent(ConnectionType.self, forKey: .connectionType) ?? .sftp
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.host = try container.decode(String.self, forKey: .host)
+        self.port = try container.decodeIfPresent(Int.self, forKey: .port) ?? type.defaultPort
+        self.username = try container.decodeIfPresent(String.self, forKey: .username) ?? ""
+        self.authMethod = try container.decodeIfPresent(AuthMethod.self, forKey: .authMethod) ?? .password
+        self.privateKeyPath = try container.decodeIfPresent(String.self, forKey: .privateKeyPath)
+        self.savePassword = try container.decodeIfPresent(Bool.self, forKey: .savePassword) ?? false
+        self.description = try container.decodeIfPresent(String.self, forKey: .description)
+        self.tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        self.iconName = try container.decodeIfPresent(String.self, forKey: .iconName) ?? type.iconName
+        self.folderId = try container.decodeIfPresent(UUID.self, forKey: .folderId)
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        self.connectionType = type
+        self.socksProxyEnabled = try container.decodeIfPresent(Bool.self, forKey: .socksProxyEnabled) ?? false
+        self.socksProxyPort = try container.decodeIfPresent(Int.self, forKey: .socksProxyPort) ?? 1080
+        self.socksProxyAllowLAN = try container.decodeIfPresent(Bool.self, forKey: .socksProxyAllowLAN) ?? false
+        self.ftpMaxStreams = try container.decodeIfPresent(Int.self, forKey: .ftpMaxStreams)
+        self.autoConnect = try container.decodeIfPresent(Bool.self, forKey: .autoConnect) ?? false
+        self.autoMount = try container.decodeIfPresent(Bool.self, forKey: .autoMount) ?? false
     }
 
     // MARK: - Computed Properties
@@ -106,6 +140,11 @@ struct Connection: Identifiable, Hashable, Sendable, Codable, Transferable {
 
     var hasTags: Bool {
         !tags.isEmpty
+    }
+
+    /// True for FTP/SMB connections using empty/anonymous/guest login without a password prompt
+    var supportsAnonymousAuth: Bool {
+        connectionType != .sftp && ["anonymous", "guest", ""].contains(username.lowercased())
     }
 
     // MARK: - Methods

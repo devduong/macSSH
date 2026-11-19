@@ -76,7 +76,8 @@ struct FileBrowserWindow: View {
             socksProxyEnabled: data.socksProxyEnabled,
             socksProxyPort: data.socksProxyPort,
             socksProxyAllowLAN: data.socksProxyAllowLAN,
-            ftpMaxStreams: data.ftpMaxStreams
+            ftpMaxStreams: data.ftpMaxStreams,
+            autoMount: data.autoMount
         )
 
         let sftpSession = container.makeRemoteSession(for: data.connectionType)

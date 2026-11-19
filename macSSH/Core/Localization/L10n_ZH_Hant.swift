@@ -259,6 +259,25 @@ public enum L10n_ZH_Hant {
         "mounted_in_finder": "已掛載到 Finder",
         "finder_mount_success": "已掛載到 Finder",
         "finder_mount_failed": "Finder 掛載失敗",
-        "finder_unmounted": "已從 Finder 卸載"
+        "finder_unmounted": "已從 Finder 卸載",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "啟動自動化",
+        "auto_connect": "自動連線",
+        "auto_mount": "自動掛載",
+        "auto_connect_on_launch": "啟動時自動連線",
+        "auto_mount_on_launch": "啟動時自動掛載到 Finder",
+        "auto_connect_on_help": "自動連線已開啟 — 啟動 macSSH 時自動連線（點擊關閉）",
+        "auto_connect_off_help": "自動連線已關閉 — 點擊以在啟動 macSSH 時自動連線",
+        "auto_mount_on_help": "自動掛載已開啟 — 啟動 macSSH 時自動掛載到 Finder（點擊關閉）",
+        "auto_mount_off_help": "自動掛載已關閉 — 點擊以在啟動 macSSH 時自動掛載到 Finder",
+        "enable_auto_connect": "開啟自動連線",
+        "disable_auto_connect": "關閉自動連線",
+        "enable_auto_mount": "開啟 Finder 自動掛載",
+        "disable_auto_mount": "關閉 Finder 自動掛載",
+        "auto_save_password_hint_title": "建議儲存密碼",
+        "auto_save_password_hint_msg": "請開啟「Saved」並儲存設定檔 (⌘S)，以便「%@」在啟動時自動執行。",
+        "auto_startup_missing_password_title": "已略過啟動自動化",
+        "auto_startup_missing_password": "以下連線尚未儲存密碼：%@"
     ]
 }

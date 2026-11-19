@@ -18,6 +18,8 @@ struct ConnectionRowView: View {
     var onFileBrowser: (() -> Void)? = nil
     var onMountInFinder: (() -> Void)? = nil
     var onUnmountFromFinder: (() -> Void)? = nil
+    var onAutoConnectToggle: (() -> Void)? = nil
+    var onAutoMountToggle: (() -> Void)? = nil
 
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var sessionManager = ConnectionSessionManager.shared
@@ -82,7 +84,7 @@ struct ConnectionRowView: View {
                 }
 
                 // Text content
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2.5) {
                     // Name row with badges
                     HStack(spacing: 6) {
                         Text(connection.name)
@@ -286,7 +288,9 @@ struct ConnectionRowView: View {
                             .lineLimit(1)
                     }
 
-                    // Auth + Tags
+                    Spacer(minLength: 0)
+
+                    // Bottom row: Auth + Tags (left) and Quick Settings (right)
                     HStack(spacing: 4) {
                         HStack(spacing: 3) {
                             Image(systemName: connection.authMethod == .privateKey ? "key.fill" : "lock.fill")
@@ -312,13 +316,42 @@ struct ConnectionRowView: View {
                                     .foregroundStyle(.tertiary)
                             }
                         }
+
+                        Spacer(minLength: 6)
+
+                        HStack(spacing: 5) {
+                            quickSettingToggleButton(
+                                title: L10n.tr("auto_connect"),
+                                systemImage: connection.autoConnect ? "bolt.badge.automatic.fill" : "bolt.badge.automatic",
+                                isEnabled: connection.autoConnect,
+                                activeColor: .green,
+                                helpText: connection.autoConnect
+                                    ? L10n.tr("auto_connect_on_help")
+                                    : L10n.tr("auto_connect_off_help"),
+                                action: onAutoConnectToggle
+                            )
+
+                            if connection.connectionType.supportsAutoMount {
+                                quickSettingToggleButton(
+                                    title: L10n.tr("auto_mount"),
+                                    systemImage: connection.autoMount ? "externaldrive.fill.badge.checkmark" : "externaldrive.badge.checkmark",
+                                    isEnabled: connection.autoMount,
+                                    activeColor: .teal,
+                                    helpText: connection.autoMount
+                                        ? L10n.tr("auto_mount_on_help")
+                                        : L10n.tr("auto_mount_off_help"),
+                                    action: onAutoMountToggle
+                                )
+                            }
+                        }
                     }
                     .padding(.top, 1)
                 }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
             .padding(.vertical, 5)
         }
-        .frame(height: 82)
+        .frame(height: 86)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
         .onChange(of: isInternetDown) { _, newValue in
@@ -332,5 +365,41 @@ struct ConnectionRowView: View {
                 }
             }
         }
+    }
+
+    private func quickSettingToggleButton(
+        title: String,
+        systemImage: String,
+        isEnabled: Bool,
+        activeColor: Color,
+        helpText: String,
+        action: (() -> Void)?
+    ) -> some View {
+        Button {
+            action?()
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 8.5, weight: .medium))
+                Text(title)
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(isEnabled ? activeColor : Color.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                isEnabled ? activeColor.opacity(0.15) : Color.secondary.opacity(0.08),
+                in: Capsule()
+            )
+            .overlay(
+                Capsule().stroke(
+                    isEnabled ? activeColor.opacity(0.45) : Color.secondary.opacity(0.22),
+                    lineWidth: 0.5
+                )
+            )
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(helpText)
     }
 }

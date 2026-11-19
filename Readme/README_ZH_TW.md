@@ -5,7 +5,7 @@
 <h1 align="center">macSSH</h1>
 
 <p align="center">
-  <strong>專為 macOS 打造的原生 SSH 連線管理、雙欄 SFTP 瀏覽器、終端機模擬器與動態 SOCKS5 代理工具</strong>
+  <strong>專為 macOS 打造的原生 SSH / FTP / SMB 伺服器管理、Finder 讀寫掛載、終端機模擬器與動態 SOCKS5 代理工具</strong>
 </p>
 
 <p align="center">
@@ -40,8 +40,8 @@
 
 > [!IMPORTANT]
 > **macSSH 是專門為 Apple macOS 平台量身打造的原生應用程式。**
-> 100% 採用 **SwiftUI**、**AppKit**、**SwiftData** 以及 Apple 原生 **LocalAuthentication (Touch ID)** 與安全框架開發。
-> 
+> 100% 採用 **SwiftUI**、**AppKit**、**SwiftData**、**Network.framework**、**AVKit**、**PDFKit**、**NetFS** 以及 Apple 原生 **LocalAuthentication (Touch ID)** 框架開發。
+>
 > 本應用程式**不支援** Windows 或 Linux 系統，具有極致的原生反應速度、零按鍵延遲以及極低的記憶體佔用。
 
 ---
@@ -50,74 +50,48 @@
 
 **macSSH** 為在 Mac 上管理遠端伺服器的開發者、DevOps 與系統管理員提供了一站式原生解決方案：
 
-- **雙欄 SFTP 檔案管理員 (Dual-Pane)**：支援本機與遠端檔案面板之間的雙向拖放傳輸，並可直接拖放至 macOS Finder。
-- **高效能 SSH 終端機**：基於 SwiftTerm 實現的 60 FPS `xterm-256color` 終端機模擬器，採用 OpenSSH 標準 PTY 直傳模式（按鍵零延遲），並支援一鍵直接在 macOS 原生 `Terminal.app` 中啟動。
-- **動態 SOCKS5 代理 (SSH Tunnel)**：自動透過 SSH 通道開啟內建 SOCKS5 代理服務，支援本機回呼 (`127.0.0.1`) 或區域網路全網段共享 (`0.0.0.0`)，支援一鍵切換與連接埠衝突自動處理。
-- **「開啟方式」與儲存自動同步 (Open With & Auto-Sync)**：可在 Mac 上的任何文字編輯器（VS Code、Xcode、TextEdit 等）中開啟遠端檔案，按下儲存 (`⌘S`) 時自動上傳覆蓋至遠端伺服器。
-- **選單列常駐與背景執行**：常駐 macOS 頂部選單列，關閉全部視窗後仍可保持 SSH 連線與代理通道。
-- **獨立安全的設定檔管理**：支援 JSON 設定檔匯入匯出、自動記憶並載入上次使用的設定檔、Touch ID 生物辨識應用程式鎖定以及 AES-256-GCM 密碼硬體加密。
+- **多協定支援 (`SSH`、`FTP`、`SMB`)**：統一管理 **SSH/SFTP**、**FTP/FTPS** 與 **SMB/CIFS** 伺服器，自動套用預設連接埠與專屬協定圖示／配色，支援匿名／訪客登入及自動 SMB 共用資料夾探索。
+- **Finder 原生讀寫掛載（FTP & SFTP）**：透過內建 **SwiftNIO WebDAV Class 2** 迴路橋接與 `/sbin/mount_webdav -S`，直接在 **macOS Finder** 以讀寫模式掛載遠端目錄 — **無需 macFUSE、FUSE-T 或 `sudo`**。
+- **雙欄檔案管理員 & 多執行緒 FTP 傳輸**：本機 ⇄ 遠端 ⇄ Finder 雙向原生拖放、遞迴資料夾傳輸，以及可自訂的 **多執行緒 FTP 傳輸（預設 10 執行緒，支援 1–32）** 與大檔案分段並行下載。
+- **內建通用檔案檢視器**：直接於應用程式內預覽 SSH、FTP 與 SMB 伺服器的純文字/程式碼、圖片、PDF、音訊/視訊 (`AVKit`) 及二進位 Hex/ASCII 檢視。
+- **快速設定 (`自動連線` 與 FTP `自動掛載`)**：連線項目右下角提供免重新載入的即時開關，支援啟動 / 開啟設定檔時自動執行，以及點擊 Connect 連線 FTP 時自動掛載。
+- **原生 OpenSSH 終端機與 SOCKS5 代理**：60 FPS `xterm-256color` 終端機、一鍵開啟 macOS `Terminal.app`、穩定的 `/usr/bin/ssh -D` 代理通道及 `NativeProcessRegistry` 防孤兒程序管理。
+- **即時網路監控、自動重連與選單列背景執行**：`NWPathMonitor` 斷網偵測與漸進重連、關閉全部視窗時自動隱藏 Dock 圖示常駐選單列。
 
 ---
 
 ## ✨ 核心功能與特色
 
-### 🌐 1. 動態 SOCKS5 代理 (SSH Tunnel)
-- **一鍵代理通道**：連線 SSH 時自動開啟 SOCKS5 代理服務，安全轉發網路流量。
-- **本機與區域網路共享**：可選擇監聽 `127.0.0.1`（僅本機）或 `0.0.0.0`（共享至區域網路內其他裝置，自動顯示目前 Mac 的區域網路 IP）。
-- **快速切換徽章**：伺服器列表行顯示紫色 SOCKS5 徽章，點擊即可快速開啟或關閉代理。
-- **智慧連接埠衝突處理**：當連接埠被占用時，macSSH 會自動安全關閉代理並透過 5 秒毛玻璃 Toast 提示，不影響主 SSH 連線。
+### 🔌 1. 多協定伺服器管理 (`SSH` / `FTP` / `SMB`)
+- **協定切換器 (`SSH | FTP | SMB`)**：新增或編輯連線時自動套用預設連接埠（`22` / `21` / `445`）與對應圖示／配色。
+- **FTP / FTPS 引擎**：採用系統 `/usr/bin/curl`，憑證經由 stdin 安全傳遞（不暴露於命令列參數），相容 Unix 與 Windows/IIS 清單格式，支援匿名登入。
+- **SMB / CIFS 引擎**：整合 Apple `NetFS.framework` 與 `/usr/bin/smbutil`，支援直接連線 `host/ShareName` 或自動掃描伺服器根目錄共用資料夾，斷線時自動卸載清理。
 
-### 📂 2. 雙欄 SFTP 檔案瀏覽與雙向原生拖放
-- **雙欄直觀版面配置**：左側本機檔案面板，右側遠端伺服器檔案面板。
-- **雙向拖放支援**：
-  - 本機拖向遠端直接上傳。
-  - 遠端拖向本機（或特定子目錄）立即下載。
-  - 支援透過 `NSFilePromiseProvider` 將遠端檔案直接拖放至 **macOS Finder**。
-- **遞迴下載整個目錄**：自動遞迴建立多層子目錄並完整下載。
-- **直接路徑輸入列**：支援隨時輸入或貼上絕對路徑（如 `/var/www`），快速鍵 `⌘L` 或 `⇧⌘G`。
-- **安全覆蓋確認**：當目標路徑存在同名檔案時，彈出 `NSAlert` 提示選擇「覆蓋 (Replace)」或「取消 (Cancel)」。
-- **精簡表格體驗**：消除橫向捲軸，欄寬自適應，支援多選批次刪除。
+### 💽 2. 免驅動讀寫掛載至 Finder (Loopback WebDAV)
+- **原生讀寫體驗**：內建 **SwiftNIO WebDAV Class 2** 服務與 `/sbin/mount_webdav -S -o browse`，直接在 Finder 瀏覽、複製、編輯與刪除遠端 FTP/SFTP 檔案，無需安裝任何第三方核心驅動程式。
+- **清晰顯示連線名稱**：透過僅限本機 `lo0` 的 `dnssd` 解析，Finder 側邊欄直接顯示連線**名稱**，取代 `127.0.0.1` 或 `.local` 後綴。
+- **智慧串流讀取 — 瀏覽資料夾不預先下載檔案**：目錄清單 (`PROPFIND`) 快取 `15s`，自動提供虛擬防掃描旗標阻斷 QuickLook / Spotlight / FSEvents 背景抓取，並於本機攔截 macOS 中繼垃圾檔案 (`._*`、`.DS_Store`、`.TemporaryItems`)；僅按需進行分片 `Range` 串流讀取，斷線即止。
+- **三層自動卸載防護**：手動斷線、Finder 退出 (`⏏`)、結束應用程式 (`⌘Q`) 或異常當機 (`-S` + `atexit`) 皆會立即安全卸載，並於下次啟動時清理殘留掛載。
 
-### 📝 3. 「開啟方式」外部編輯器與儲存自動同步
-- **任何 Mac 應用程式開啟**：右鍵選單提供 `Open With Default App` 與 `Open With…`（智慧辨識系統中已安裝的 VS Code、Xcode、Sublime Text、TextEdit 等）。
-- **`⌘S` 自動同步**：內建 2 秒輪詢監聽。在外部應用程式中儲存時，自動偵測變更並即時上傳覆蓋至伺服器。
+### ⚡ 3. 快速設定 (`自動連線` & `自動掛載`) 與免重載介面
+- **項目右下角快速切換鈕**：
+  - **`自動連線`**（支援所有協定）：啟動 macSSH 或開啟設定檔時自動建立連線。
+  - **`自動掛載`**（**僅限 FTP**）：啟動時背景靜默掛載至 Finder，且每次手動點擊 **連線 (Connect)** 時自動觸發掛載。
+- **免重新載入即時更新**：切換 `自動連線`、`自動掛載`、`Saved` 或 `SOCKS5` 時僅原地更新該項目，不閃爍整頁或重置捲動位置，並支援在 Touch ID 解鎖後自動銜接執行。
 
-### 💻 4. 完整 SSH 終端機與零延遲輸入
-- **流暢終端機模擬**：基於 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)，支援 60 FPS 繪製與完整 `xterm-256color`。
-- **零延遲直傳模式**：遵循 OpenSSH 標準 PTY 模式，主執行緒位元組流直推，徹底消除按鍵延遲與緩衝卡頓。
-- **一鍵呼叫 macOS 原生終端機**：工具列與右鍵選單提供 **「Open in macOS Terminal」**，透過 AppleScript 一鍵啟動系統內建終端機。
-- **驗證失敗重新提示**：自動識別密碼錯誤並彈出密碼重試視窗。
+### 🌐 4. 原生 OpenSSH SOCKS5 代理與行程生命週期管理
+- **Headless `/usr/bin/ssh -D` 通道**：透過 `forkpty` 執行系統 OpenSSH，支援 `127.0.0.1` 本機或 `0.0.0.0` 區域網路共享（自動顯示 LAN IP），睡眠喚醒穩定不斷線。
+- **衝突偵測與行程清理**：連接埠衝突自動停用代理並顯示 5 秒 Toast；`NativeProcessRegistry` 透過 `atexit`、訊號處理與啟動巡檢確保無殘留孤兒行程。
 
-### 📊 5. 傳輸佇列管理面板與即時記錄
-- **底部 3 標籤頁控制面板**：
-  - 📤 **上傳佇列 (Upload Queue)**：顯示進度百分比、已傳輸大小、**即時傳輸速率 (MB/s, KB/s)**、**剩餘預估時間 (ETA)** 與取消控制。
-  - 📥 **下載佇列 (Download Queue)**：即時監控檔案下載進度與速率。
-  - 📜 **主控台記錄 (Log Console)**：帶有時間戳記 `[HH:mm:ss]` 和顏色分級（`[INFO]`、`[SUCCESS]`、`[WARN]`、`[ERROR]`）的即時 SFTP 操作記錄。
-- **純記憶體運作機制**：傳輸佇列與記錄僅在活動工作階段的記憶體中保留，關閉視窗後自動釋放。
+### 📂 5. 雙欄瀏覽、多執行緒 FTP 與通用檔案檢視器
+- **雙向拖放與多執行緒 FTP (`1–32` 執行緒，預設 `10`)**：可在設定、單一連線或傳輸佇列底部即時調整並行數；支援資料夾遞迴上傳/下載、批次覆蓋確認（取代 / 全部取代 / 略過 / 取消）及 `>= 4 MB` 檔案多段並行下載。
+- **五合一通用檔案檢視器**：純文字/程式碼（行號+搜尋+轉開啟編輯器）、圖片縮放、`PDFKit` PDF、原生 `AVKit` 音訊/視訊播放器（`.mp4`/`.mov`/`.mp3`）以及十六進位 Binary 檢視器；搭配 **Edit With** 可於外部編輯器按 `⌘S` 時自動上傳同步。
 
-### 🗂️ 6. 現代雙欄版面配置與便捷操作
-- **雙欄結構**：側邊欄（資料夾、設定、贊助、關於）與連線列表。
-- **跨欄拖放分類**：直接將伺服器拖入側邊欄資料夾進行分類管理。
-- **按兩下自動連線**：按兩下伺服器項目立即建立連線並開啟檔案瀏覽器。
-- **即時連線狀態同步**：連線成功後狀態指示燈立即變為綠色。
-- **快捷操作按鈕**：每行均常駐顯示 📁 開啟檔案瀏覽器 與 `>_` 開啟終端機 按鈕。
-
-### 💾 7. 獨立設定檔管理與生物辨識安全
-- **JSON 設定檔**：儲存 (`⌘S`)、另存新檔 (`⇧⌘S`)、開啟 (`⌘O`)、新增設定 (`⌘⌥N`)。
-- **自動記憶設定檔**：記錄目前使用的設定檔並在啟動時自動重新載入。
-- **結束儲存提醒**：在存在未儲存變更時彈出「儲存 / 不儲存 / 取消」提示。
-- **AES-256-GCM 密碼加密**：密碼可安全加密並儲存於設定檔內，不強制依賴系統 Keychain。
-- **Touch ID 指紋鎖**：支援使用 Touch ID 或 Mac 開機密碼鎖定/解鎖應用程式。
-
-### 🌐 8. 多語言國際化架構 (L10N)
-- 支援多種語言並具備英文自動降級（Fallback）機制：
-  - 🇬🇧 英語 (**English** - 預設降級)
-  - 🇻🇳 越南語 (**Tiếng Việt**)
-  - 🇨🇳 簡體中文 (**简体中文**)
-  - 🇹🇼 繁體中文 (**繁體中文**)
-  - 🇷🇺 俄語 (**Русский**)
-  - 🇫🇷 法語 (**Français**)
-- 設定中即時切換語言，無需重新啟動應用程式。
+### 📊 6. 傳輸佇列篩選/重試、即時記錄與原生 macOS 體驗
+- **佇列統計與批次重試**：底部狀態膠囊即時顯示成功／失敗數量（支援點擊快篩），提供狀態篩選、檔名篩選以及單一/批次**重試失敗項目**按鈕。
+- **即時活動記錄 (`⌘⇧L`)**：保存最新 200 筆記錄，支援層級與分類篩選及 `↕︎` 拖曳調整高度；Release 版具備零配置負擔記錄機制。
+- **即時斷網監控 & 自動重連**：`NWPathMonitor` 觸發紅色閃爍警示與 5 秒自動消退通知，恢復連線後按 `0s → 5s → 10s` 自動重連並重新整理 Finder 掛載。
+- **完整系統整合**：工具列一鍵切換 **深色 ↔ 淺色 (`Dark`/`Light`)** 外觀、側邊欄／列表空白處右鍵建立選單、完整 macOS 頂部選單列、關閉視窗自動隱藏 Dock 圖示，支援 **Touch ID** 鎖定、**AES-256-GCM** 設定檔加密與 **6 種語言**。
 
 ---
 
@@ -126,12 +100,12 @@
 | 連線管理與側邊欄 | 右鍵選單與快捷操作 |
 |:---:|:---:|
 | ![Connection Manager](../screens/screen-1.png) | ![Context Menu](../screens/screen-2.png) |
-| *雙欄極簡佈局，資料夾分類管理，快速連線* | *右鍵選單：SOCKS5 代理、終端機、SFTP 瀏覽器* |
+| *雙欄極簡佈局，資料夾分類，快速設定一目瞭然* | *右鍵選單：Finder 掛載、SOCKS5 代理、終端機、檔案瀏覽* |
 
-| 雙欄 SFTP 瀏覽器與傳輸佇列 | 內建 SSH 終端機 |
+| 雙欄檔案瀏覽器與傳輸佇列 | 內建 SSH 終端機 |
 |:---:|:---:|
 | ![File Browser](../screens/screen-3.png) | ![SSH Terminal](../screens/screen-4.png) |
-| *雙向原生拖曳、路徑直接跳轉、即時傳輸速度與 ETA* | *零延遲 xterm-256color 終端機模擬器* |
+| *雙向原生拖曳、路徑直達、即時傳輸速度與 ETA* | *零延遲 xterm-256color 終端機模擬器* |
 
 ---
 
@@ -220,7 +194,7 @@
 ## 🙏 致謝與來源 (Acknowledgments)
 
 - 🌟 **特別鳴謝 [macnev2013](https://github.com/macnev2013)** — `macSCP` 與 `anySCP` 的作者。非常感謝他早期出色的設計理念與專案基礎，為 **macSSH** 的構想與演進提供了至關重要的靈感。
-- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — 核心 SSH 與 SFTP 協定基礎。
+- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO](https://github.com/apple/swift-nio) / [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — 核心 SSH、SFTP 與 WebDAV HTTP 網路層基礎。
 - 💻 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (Miguel de Icaza) — 強大的 macOS 終端機模擬函式庫。
 - 🎨 [SF Symbols](https://developer.apple.com/sf-symbols/) (Apple) — 原生 macOS 系統圖示體系。
 

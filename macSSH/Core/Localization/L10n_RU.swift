@@ -259,6 +259,25 @@ public enum L10n_RU {
         "mounted_in_finder": "Смонтировано в Finder",
         "finder_mount_success": "Смонтировано в Finder",
         "finder_mount_failed": "Ошибка монтирования в Finder",
-        "finder_unmounted": "Отмонтировано от Finder"
+        "finder_unmounted": "Отмонтировано от Finder",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "Автозапуск",
+        "auto_connect": "Автоподкл.",
+        "auto_mount": "Автомонтир.",
+        "auto_connect_on_launch": "Автоподключение при запуске",
+        "auto_mount_on_launch": "Автомонтирование в Finder при запуске",
+        "auto_connect_on_help": "Автоподключение ВКЛ — подключается автоматически при запуске macSSH (нажмите, чтобы выключить)",
+        "auto_connect_off_help": "Автоподключение ВЫКЛ — нажмите для автоподключения при запуске macSSH",
+        "auto_mount_on_help": "Автомонтирование ВКЛ — монтируется в Finder автоматически при запуске macSSH (нажмите, чтобы выключить)",
+        "auto_mount_off_help": "Автомонтирование ВЫКЛ — нажмите для автомонтирования в Finder при запуске macSSH",
+        "enable_auto_connect": "Включить автоподключение",
+        "disable_auto_connect": "Отключить автоподключение",
+        "enable_auto_mount": "Включить автомонтирование в Finder",
+        "disable_auto_mount": "Отключить автомонтирование в Finder",
+        "auto_save_password_hint_title": "Рекомендуется сохранить пароль",
+        "auto_save_password_hint_msg": "Включите «Saved» и сохраните конфигурацию (⌘S), чтобы «%@» запускался автоматически.",
+        "auto_startup_missing_password_title": "Автозапуск пропущен",
+        "auto_startup_missing_password": "Нет сохранённого пароля для: %@"
     ]
 }

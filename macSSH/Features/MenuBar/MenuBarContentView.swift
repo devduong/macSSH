@@ -86,7 +86,12 @@ struct MenuBarContentView: View {
                             Button {
                                 Task {
                                     let password = sessionManager.getCachedPassword(for: connection.id) ?? ""
-                                    try? await sessionManager.connect(connection, password: password)
+                                    do {
+                                        try await sessionManager.connect(connection, password: password)
+                                        await FinderMountManager.shared.autoMountOnConnectIfEnabled(for: connection, password: password)
+                                    } catch {
+                                        logError("Failed to connect from menu bar: \(error.localizedDescription)", category: .network)
+                                    }
                                 }
                             } label: {
                                 Label(L10n.tr("connect"), systemImage: "bolt.fill")
@@ -259,7 +264,8 @@ struct MenuBarContentView: View {
             socksProxyEnabled: connection.socksProxyEnabled,
             socksProxyPort: connection.socksProxyPort,
             socksProxyAllowLAN: connection.socksProxyAllowLAN,
-            ftpMaxStreams: connection.ftpMaxStreams
+            ftpMaxStreams: connection.ftpMaxStreams,
+            autoMount: connection.autoMount
         )
         let windowId = WindowManager.shared.storeFileBrowserData(windowData)
         openWindow(id: WindowID.fileBrowser, value: windowId)

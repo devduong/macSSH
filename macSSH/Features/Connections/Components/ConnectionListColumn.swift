@@ -237,6 +237,12 @@ struct ConnectionListColumn: View {
                 },
                 onUnmountFromFinder: {
                     viewModel.unmountFromFinder(connection)
+                },
+                onAutoConnectToggle: {
+                    Task { await viewModel.toggleAutoConnect(connection) }
+                },
+                onAutoMountToggle: {
+                    Task { await viewModel.toggleAutoMount(connection) }
                 }
             )
             .contentShape(Rectangle())
@@ -349,6 +355,26 @@ struct ConnectionListColumn: View {
                         Label(
                             connection.socksProxyEnabled ? loc("Disable SOCKS5 Proxy", "Tắt SOCKS5 Proxy") : loc("Enable SOCKS5 Proxy", "Bật SOCKS5 Proxy"),
                             systemImage: connection.socksProxyEnabled ? "wifi.slash" : "wifi"
+                        )
+                    }
+                }
+
+                Button {
+                    Task { await viewModel.toggleAutoConnect(connection) }
+                } label: {
+                    Label(
+                        connection.autoConnect ? L10n.tr("disable_auto_connect") : L10n.tr("enable_auto_connect"),
+                        systemImage: connection.autoConnect ? "bolt.badge.automatic.fill" : "bolt.badge.automatic"
+                    )
+                }
+
+                if connection.connectionType.supportsAutoMount {
+                    Button {
+                        Task { await viewModel.toggleAutoMount(connection) }
+                    } label: {
+                        Label(
+                            connection.autoMount ? L10n.tr("disable_auto_mount") : L10n.tr("enable_auto_mount"),
+                            systemImage: connection.autoMount ? "externaldrive.fill.badge.checkmark" : "externaldrive.badge.checkmark"
                         )
                     }
                 }

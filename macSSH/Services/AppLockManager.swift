@@ -194,6 +194,7 @@ final class AppLockManager {
             authenticationError = nil
             logInfo("Authentication succeeded", category: .auth)
             AnalyticsService.trackBiometricResult(success: true)
+            NotificationCenter.default.post(name: .appDidUnlock, object: nil)
             return true
 
         case .failure(let error):

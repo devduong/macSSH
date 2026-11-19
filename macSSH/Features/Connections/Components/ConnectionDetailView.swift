@@ -157,6 +157,14 @@ struct ConnectionDetailView: View {
                     }()
                     contactDetailRow(label: "socks5 proxy", value: proxyEndpoint, icon: "network")
                 }
+                if connection.autoConnect {
+                    Divider().padding(.leading, 36)
+                    contactDetailRow(label: L10n.tr("auto_connect"), value: L10n.tr("auto_connect_on_launch"), icon: "bolt.badge.automatic.fill")
+                }
+                if connection.autoMount && connection.connectionType.supportsAutoMount {
+                    Divider().padding(.leading, 36)
+                    contactDetailRow(label: L10n.tr("auto_mount"), value: L10n.tr("auto_mount_on_launch"), icon: "externaldrive.fill.badge.checkmark")
+                }
             }
         }
     }

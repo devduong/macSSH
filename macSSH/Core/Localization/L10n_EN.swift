@@ -259,6 +259,25 @@ public enum L10n_EN {
         "mounted_in_finder": "Mounted in Finder",
         "finder_mount_success": "Mounted in Finder",
         "finder_mount_failed": "Finder Mount Failed",
-        "finder_unmounted": "Unmounted from Finder"
+        "finder_unmounted": "Unmounted from Finder",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "Startup Automation",
+        "auto_connect": "Auto Connect",
+        "auto_mount": "Auto Mount",
+        "auto_connect_on_launch": "Auto-connect on launch",
+        "auto_mount_on_launch": "Auto-mount in Finder on launch",
+        "auto_connect_on_help": "Auto Connect is ON — connects automatically when macSSH starts (click to disable)",
+        "auto_connect_off_help": "Auto Connect is OFF — click to connect automatically when macSSH starts",
+        "auto_mount_on_help": "Auto Mount is ON — mounts into Finder automatically when macSSH starts (click to disable)",
+        "auto_mount_off_help": "Auto Mount is OFF — click to mount into Finder automatically when macSSH starts",
+        "enable_auto_connect": "Enable Auto Connect",
+        "disable_auto_connect": "Disable Auto Connect",
+        "enable_auto_mount": "Enable Auto Mount in Finder",
+        "disable_auto_mount": "Disable Auto Mount in Finder",
+        "auto_save_password_hint_title": "Save Password Recommended",
+        "auto_save_password_hint_msg": "Enable 'Saved' and save your configuration (⌘S) so \"%@\" can run automatically on launch.",
+        "auto_startup_missing_password_title": "Startup Automation Skipped",
+        "auto_startup_missing_password": "No saved password for: %@"
     ]
 }

@@ -5,7 +5,7 @@
 <h1 align="center">macSSH</h1>
 
 <p align="center">
-  <strong>专为 macOS 打造的原生 SSH 连接管理、双栏 SFTP 浏览器、终端模拟器与动态 SOCKS5 代理工具</strong>
+  <strong>专为 macOS 打造的原生 SSH / FTP / SMB 服务器管理、Finder 读写挂载、终端模拟器与动态 SOCKS5 代理工具</strong>
 </p>
 
 <p align="center">
@@ -40,8 +40,8 @@
 
 > [!IMPORTANT]
 > **macSSH 是专门为 Apple macOS 平台量身打造的原生应用。**
-> 100% 采用 **SwiftUI**、**AppKit**、**SwiftData** 以及 Apple 原生 **LocalAuthentication (Touch ID)** 与安全框架开发。
-> 
+> 100% 采用 **SwiftUI**、**AppKit**、**SwiftData**、**Network.framework**、**AVKit**、**PDFKit**、**NetFS** 以及 Apple 原生 **LocalAuthentication (Touch ID)** 框架开发。
+>
 > 本应用**不支持** Windows 或 Linux 系统，具有极致的原生响应速度、零输入延迟和极低的系统内存占用。
 
 ---
@@ -50,74 +50,48 @@
 
 **macSSH** 为在 Mac 上管理远程服务器的开发者、DevOps 与运维工程师提供了一站式原生解决方案：
 
-- **双栏 SFTP 文件管理器 (Dual-Pane)**：支持本地与远程文件面板之间的双向拖拽传输，并可直接拖放至 macOS Finder。
-- **高性能 SSH 终端**：基于 SwiftTerm 实现的 60 帧 `xterm-256color` 终端模拟器，采用 OpenSSH 标准 PTY 直传模式（输入零延迟），并支持一键直接在 macOS 原生 `Terminal.app` 中启动。
-- **动态 SOCKS5 代理 (SSH Tunnel)**：自动通过 SSH 隧道开启内置 SOCKS5 代理服务，支持本机环回 (`127.0.0.1`) 或局域网全网段共享 (`0.0.0.0`)，支持一键切换及端口冲突自动处理。
-- **“打开方式”与保存自动同步 (Open With & Auto-Sync)**：可在 Mac 上的任意文本编辑器（VS Code、Xcode、TextEdit 等）中打开远程文件，按下保存 (`⌘S`) 时自动上传覆盖至远程服务器。
-- **菜单栏常驻与后台运行**：常驻 macOS 顶部菜单栏，关闭全部窗口后仍可保持 SSH 会话与代理连接。
-- **独立安全的配置管理**：支持 JSON 配置文件导入导出、自动记忆并加载上次使用的配置文件、Touch ID 生物识别应用锁以及 AES-256-GCM 密码硬件加密。
+- **多协议支持 (`SSH`、`FTP`、`SMB`)**：统一管理 **SSH/SFTP**、**FTP/FTPS** 与 **SMB/CIFS** 服务器，自动匹配默认端口与协议图标/颜色，支持匿名/访客登录及自动 SMB 共享发现。
+- **Finder 原生读写挂载（FTP & SFTP）**：通过内置 **SwiftNIO WebDAV Class 2** 环回桥接与 `/sbin/mount_webdav -S`，直接在 **macOS Finder** 中以读写模式挂载远程目录 — **无需 macFUSE、FUSE-T 或 `sudo`**。
+- **双栏文件管理器 & 多线程 FTP 传输**：本地 ⇄ 远程 ⇄ Finder 双向原生拖拽、递归文件夹传输，以及可自定义的 **多线程 FTP 传输（默认 10 线程，支持 1–32）** 与大文件分段并行下载。
+- **内置通用文件预览器**：支持直接在应用内预览 SSH、FTP 和 SMB 服务器的文本/代码、图片、PDF、音视频 (`AVKit`) 及二进制 Hex/ASCII 内容。
+- **快捷开关 (`自动连接` 与 FTP `自动挂载`)**：连接条目右下角提供零刷新即时开关，支持启动 / 加载配置时自动执行，以及点击 Connect 连接 FTP 时自动挂载。
+- **原生 OpenSSH 终端与 SOCKS5 代理**：60 FPS `xterm-256color` 终端、一键启动 macOS `Terminal.app`、稳定的 `/usr/bin/ssh -D` 代理隧道及 `NativeProcessRegistry` 防孤儿进程管理。
+- **实时网络监控、自动重连与菜单栏后台**：`NWPathMonitor` 断网检测与递进重连、关闭全部窗口时自动隐藏 Dock 图标常驻菜单栏。
 
 ---
 
 ## ✨ 核心功能与特性
 
-### 🌐 1. 动态 SOCKS5 代理 (SSH Tunnel)
-- **一键代理隧道**：连接 SSH 时自动开启 SOCKS5 代理服务，安全转发网络流量。
-- **本机与局域网共享**：可选择监听 `127.0.0.1`（仅本机）或 `0.0.0.0`（共享至局域网内其他设备，自动显示当前 Mac 的局域网 IP）。
-- **快速切换徽章**：服务器列表行显示紫色 SOCKS5 徽章，点击即可快速开启或关闭代理。
-- **智能端口冲突处理**：当端口被占用时，macSSH 会自动安全关闭代理并通过 5 秒毛玻璃 Toast 提示，不影响主 SSH 连接。
+### 🔌 1. 多协议服务器管理 (`SSH` / `FTP` / `SMB`)
+- **协议切换器 (`SSH | FTP | SMB`)**：新建或编辑连接时自动匹配默认端口（`22` / `21` / `445`）及专属协议图标与配色。
+- **FTP / FTPS 引擎**：基于系统 `/usr/bin/curl`，凭据通过 stdin 安全传递（不暴露于命令行参数），兼容 Unix 及 Windows/IIS 列表解析，支持匿名登录。
+- **SMB / CIFS 引擎**：集成 Apple `NetFS.framework` 与 `/usr/bin/smbutil`，支持直连 `host/ShareName` 或自动扫描服务器根共享目录，断开时自动清理卸载。
 
-### 📂 2. 双栏 SFTP 文件浏览与双向原生拖拽
-- **双栏直观布局**：左侧本地文件面板，右侧远程服务器文件面板。
-- **双向拖拽支持**：
-  - 本地拖向远程直接上传。
-  - 远程拖向本地（或特定子目录）立即下载。
-  - 支持通过 `NSFilePromiseProvider` 将远程文件直接拖拽至 **macOS Finder**。
-- **递归下载整个目录**：自动递归创建多层子目录并完整下载。
-- **直接路径输入栏**：支持随时键入或粘贴绝对路径（如 `/var/www`），快捷键 `⌘L` 或 `⇧⌘G`。
-- **安全覆盖确认**：当目标路径存在同名文件时，弹出 `NSAlert` 提示选择“覆盖 (Replace)”或“取消 (Cancel)”。
-- **精简表格体验**：消除横向滚动条，列宽自适应，支持多选批量删除。
+### 💽 2. 免驱动读写挂载到 Finder (Loopback WebDAV)
+- **原生读写体验**：内置 **SwiftNIO WebDAV Class 2** 服务与 `/sbin/mount_webdav -S -o browse`，支持直接在 Finder 中浏览、拷贝、编辑和删除远程 FTP/SFTP 文件，无需安装任何第三方内核驱动。
+- **清晰显示连接名称**：通过仅限本机 `lo0` 的 `dnssd` 解析，Finder 边栏直接显示连接**名称**，告别 `127.0.0.1` 或 `.local` 后缀。
+- **智能流式读取 — 浏览目录不预先下载文件**：目录列表 (`PROPFIND`) 缓存 `15s`，自动注入虚拟防扫描标识阻断 QuickLook / Spotlight / FSEvents 后台爬取，并拦截 macOS 元数据垃圾文件 (`._*`、`.DS_Store`、`.TemporaryItems`)；仅按需进行分片 `Range` 流式读取，断开即止。
+- **三层自动卸载保障**：主动断开、Finder 推出 (`⏏`)、退出应用 (`⌘Q`) 或异常崩溃 (`-S` + `atexit`) 均能瞬间安全卸载，并在下次启动时清理残留。
 
-### 📝 3. “打开方式”外部编辑器与保存自动同步
-- **任意 Mac 应用打开**：右键菜单提供 `Open With Default App` 与 `Open With…`（智能匹配系统中已安装的 VS Code、Xcode、Sublime Text、TextEdit 等）。
-- **`⌘S` 自动同步**：内置 2 秒轮询监听。在外部应用中保存时，自动检测修改并实时上传覆盖至服务器。
+### ⚡ 3. 快捷设置 (`自动连接` & `自动挂载`) 与无刷新更新
+- **条目右下角快捷按钮**：
+  - **`自动连接`**（支持所有协议）：打开 macSSH 或加载配置文件时自动建立会话。
+  - **`自动挂载`**（**仅支持 FTP**）：启动时静默挂载到 Finder，且每次点击 **连接 (Connect)** 时自动触发挂载。
+- **零重载即时响应**：点击切换 `自动连接`、`自动挂载`、`Saved` 或 `SOCKS5` 时仅原地刷新当前条目，绝不刷新整页或重置滚动位置，并兼容 Touch ID 解锁后延迟执行。
 
-### 💻 4. 完整 SSH 终端与零延迟输入
-- **流畅终端模拟**：基于 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)，支持 60 FPS 渲染与完整 `xterm-256color`。
-- **零延迟直传模式**：遵循 OpenSSH 标准 PTY 模式，主线程字节流直推，彻底消除按键延迟与缓冲卡顿。
-- **一键调用 macOS 原生终端**：工具栏与右键菜单提供 **“Open in macOS Terminal”**，通过 AppleScript 一键启动系统自带终端。
-- **认证失败重新提示**：自动识别密码错误并弹出密码重试弹窗。
+### 🌐 4. 原生 OpenSSH SOCKS5 代理与进程管理
+- **Headless `/usr/bin/ssh -D` 隧道**：通过 `forkpty` 运行系统 OpenSSH，支持 `127.0.0.1` 本机或 `0.0.0.0` 局域网共享（自动显示 LAN IP），稳健应对睡眠唤醒。
+- **冲突检测与生命周期保护**：端口冲突自动降级并弹窗提示 5 秒；`NativeProcessRegistry` 通过 `atexit`、信号处理器及启动巡检确保绝无僵尸子进程残留。
 
-### 📊 5. 传输队列管理面板与实时日志
-- **底部 3 标签页控制面板**：
-  - 📤 **上传队列 (Upload Queue)**：显示进度百分比、已传输大小、**实时传输速率 (MB/s, KB/s)**、**剩余预估时间 (ETA)** 及取消控制。
-  - 📥 **下载队列 (Download Queue)**：实时监控文件下载进度与速率。
-  - 📜 **控制台日志 (Log Console)**：带有时间戳 `[HH:mm:ss]` 和颜色分级（`[INFO]`、`[SUCCESS]`、`[WARN]`、`[ERROR]`）的实时 SFTP 操作日志。
-- **纯内存运行机制**：传输队列与日志仅在活动会话的内存中保留，关闭窗口后自动释放。
+### 📂 5. 双栏浏览、多线程 FTP 与通用文件查看器
+- **双向拖拽与多线程 FTP (`1–32` 线程，默认 `10`)**：在设置、单条连接或传输队列底部一键调节并发数；支持文件夹递归上传/下载、集中覆盖确认（替换/全部替换/跳过/取消）与 `>= 4 MB` 文件多段并发下载。
+- **五合一通用文件查看器**：文本/代码（行号+搜索+跳转编辑）、图片缩放、`PDFKit` PDF、原生 `AVKit` 音视频播放器（`.mp4`/`.mov`/`.mp3`）以及十六进制 Binary 检查器；配合 **Edit With** 可在外部编辑器 `⌘S` 时自动回传。
 
-### 🗂️ 6. 现代双栏布局与便捷操作
-- **双栏结构**：侧边栏（文件夹、设置、赞助、关于）与连接列表。
-- **跨栏拖拽归类**：直接将服务器拖入侧边栏文件夹进行分类管理。
-- **双击自动连接**：双击服务器条目立即建立连接并开启文件浏览器。
-- **实时在线状态同步**：连接成功后状态指示灯立即变为绿色。
-- **快捷操作按钮**：每行均常驻显示 📁 打开文件浏览器 与 `>_` 打开终端 按钮。
-
-### 💾 7. 独立配置管理与生物识别安全
-- **JSON 配置文件**：保存 (`⌘S`)、另存为 (`⇧⌘S`)、打开 (`⌘O`)、新建配置 (`⌘⌥N`)。
-- **自动记忆配置文件**：记录当前使用的配置文件并在启动时自动重新加载。
-- **退出保存提醒**：在存在未保存更改时弹出“保存 / 不保存 / 取消”提示。
-- **AES-256-GCM 密码加密**：密码可安全加密并保存于配置文件内，不强制依赖系统 Keychain。
-- **Touch ID 指纹锁**：支持使用 Touch ID 或 Mac 开机密码锁定/解锁应用。
-
-### 🌐 8. 多语言国际化架构 (L10N)
-- 支持多种语言并具备英文自动降级（Fallback）机制：
-  - 🇬🇧 英语 (**English** - 默认降级)
-  - 🇻🇳 越南语 (**Tiếng Việt**)
-  - 🇨🇳 简体中文 (**简体中文**)
-  - 🇹🇼 繁体中文 (**繁體中文**)
-  - 🇷🇺 俄语 (**Русский**)
-  - 🇫🇷 法语 (**Français**)
-- 设置中即时切换语言，无需重启应用。
+### 📊 6. 传输队列筛选/重试、实时日志与原生 macOS 体验
+- **队列统计与一键重试**：底部统计胶囊实时显示成功/失败数量（点击快速过滤），支持状态筛选、文件名过滤以及单条/批量**重试失败项**。
+- **实时活动日志 (`⌘⇧L`)**：保留最新 200 条日志，支持级别/分类过滤及 `↕︎` 拖拽调高；Release 构建零开销。
+- **实时断网检测 & 自动重连**：`NWPathMonitor` 触发红色闪烁预警与 5 秒自动消隐通知，网络恢复后按 `0s → 5s → 10s` 自动重连并刷新 Finder 挂载。
+- **完整系统融合**：工具栏一键切换 **深色 ↔ 浅色 (`Dark`/`Light`)** 主题、侧边栏/连接列表空白处右键新建菜单、完整 macOS 顶部菜单栏、关闭窗口自动隐藏 Dock 图标，支持 **Touch ID** 锁定、**AES-256-GCM** 配置加密与 **6 种语言**。
 
 ---
 
@@ -126,12 +100,12 @@
 | 连接管理与侧边栏 | 右键菜单与快捷操作 |
 |:---:|:---:|
 | ![Connection Manager](../screens/screen-1.png) | ![Context Menu](../screens/screen-2.png) |
-| *双栏极简布局，文件夹分类管理，快速连接* | *右键菜单：SOCKS5 代理、终端、SFTP 浏览器* |
+| *双栏极简布局，文件夹分类，快捷开关一目了然* | *右键菜单：Finder 挂载、SOCKS5 代理、终端、文件浏览* |
 
-| 双栏 SFTP 浏览器与传输队列 | 内置 SSH 终端 |
+| 双栏文件浏览器与传输队列 | 内置 SSH 终端 |
 |:---:|:---:|
 | ![File Browser](../screens/screen-3.png) | ![SSH Terminal](../screens/screen-4.png) |
-| *双向原生拖拽、路径直接跳转、实时传输速度与 ETA* | *零延迟 xterm-256color 终端模拟器* |
+| *双向原生拖拽、路径直达、实时速度与 ETA* | *零延迟 xterm-256color 终端模拟器* |
 
 ---
 
@@ -220,7 +194,7 @@
 ## 🙏 致谢与来源 (Acknowledgments)
 
 - 🌟 **特别鸣谢 [macnev2013](https://github.com/macnev2013)** — `macSCP` 与 `anySCP` 的作者。非常感谢他早期出色的设计理念与项目基础，为 **macSSH** 的构想与演进提供了至关重要的灵感。
-- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — 核心 SSH 与 SFTP 协议基础。
+- 🚀 [Citadel](https://github.com/Orlandos-nl/Citadel) (Joannis Orlandos) & [SwiftNIO](https://github.com/apple/swift-nio) / [SwiftNIO SSH](https://github.com/apple/swift-nio-ssh) (Apple) — 核心 SSH、SFTP 与 WebDAV HTTP 网络层基础。
 - 💻 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) (Miguel de Icaza) — 强大的 macOS 终端模拟库。
 - 🎨 [SF Symbols](https://developer.apple.com/sf-symbols/) (Apple) — 原生 macOS 系统图标体系。
 

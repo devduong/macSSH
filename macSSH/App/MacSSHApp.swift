@@ -56,11 +56,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Clean up any leftover orphan ssh/socks processes, scripts, and stale Finder mounts from previous sessions/crashes
         NativeProcessRegistry.shared.cleanupOrphanProcesses()
         TerminalLauncherService.cleanupOldScripts()
-        FinderMountManager.cleanupOrphanMounts()
 
-        // Auto-load the last opened config file if it exists
+        // Wait for orphan mount cleanup, auto-load saved config, then run auto-connect/auto-mount
         Task { @MainActor in
+            await FinderMountManager.cleanupOrphanMountsAndWait()
             await ConfigurationService.shared.autoLoadLastFileIfNeeded()
+            await StartupAutomationService.shared.runOnLaunchIfUnlocked()
         }
 
         // Monitor window close notifications to hide Dock icon when no regular windows are open

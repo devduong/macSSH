@@ -147,7 +147,9 @@ final class ConnectionListViewModel {
     // MARK: - Data Loading
 
     func loadData() async {
-        state = .loading
+        if case .idle = state {
+            state = .loading
+        }
 
         do {
             async let connectionsTask = connectionRepository.fetchAll()
@@ -158,7 +160,11 @@ final class ConnectionListViewModel {
             state = .success(())
         } catch {
             logError("Failed to load data: \(error)", category: .database)
-            state = .error(AppError.from(error))
+            if connections.isEmpty && folders.isEmpty {
+                state = .error(AppError.from(error))
+            } else {
+                self.error = AppError.from(error)
+            }
         }
     }
 
@@ -255,17 +261,11 @@ final class ConnectionListViewModel {
 
         var updated = connection
         updated.socksProxyEnabled.toggle()
-        do {
-            try await connectionRepository.update(updated)
+        await persistQuickToggle(updated: updated, previous: connection) {
             if ConnectionSessionManager.shared.isConnected(connection.id) {
                 try? await ConnectionSessionManager.shared.updateProxyState(for: connection.id, enabled: updated.socksProxyEnabled)
             }
-            ConfigurationService.shared.markUnsavedChanges()
-            await loadData()
             logInfo("Proxy toggled for \(connection.name): \(updated.socksProxyEnabled)", category: .database)
-        } catch {
-            logError("Failed to toggle proxy: \(error)", category: .database)
-            self.error = AppError.from(error)
         }
     }
 
@@ -275,13 +275,78 @@ final class ConnectionListViewModel {
         if !updated.savePassword {
             ConnectionSessionManager.shared.clearPassword(for: connection.id)
         }
+        await persistQuickToggle(updated: updated, previous: connection) {
+            logInfo("Save password toggled for \(connection.name): \(updated.savePassword)", category: .database)
+        }
+    }
+
+    func toggleAutoConnect(_ connection: Connection) async {
+        let newValue = !connection.autoConnect
+        await updateAutomationToggle(
+            for: connection,
+            enabled: newValue,
+            settingLabel: "Auto Connect"
+        ) { updated in
+            updated.autoConnect = newValue
+        }
+    }
+
+    func toggleAutoMount(_ connection: Connection) async {
+        guard connection.connectionType.supportsAutoMount else { return }
+        let newValue = !connection.autoMount
+        await updateAutomationToggle(
+            for: connection,
+            enabled: newValue,
+            settingLabel: "Auto Mount"
+        ) { updated in
+            updated.autoMount = newValue
+        }
+    }
+
+    private func updateAutomationToggle(
+        for connection: Connection,
+        enabled: Bool,
+        settingLabel: String,
+        mutate: (inout Connection) -> Void
+    ) async {
+        var updated = connection
+        mutate(&updated)
+        await persistQuickToggle(updated: updated, previous: connection) {
+            logInfo("\(settingLabel) toggled for \(connection.name): \(enabled)", category: .database)
+
+            if enabled &&
+                connection.authMethod == .password &&
+                !connection.supportsAnonymousAuth &&
+                !connection.savePassword {
+                ToastManager.shared.show(
+                    title: L10n.tr("auto_save_password_hint_title"),
+                    message: L10n.tr("auto_save_password_hint_msg", connection.name),
+                    type: .info,
+                    duration: 4.5
+                )
+            }
+        }
+    }
+
+    /// Updates the in-memory list row immediately (no full page reload) and persists to SwiftData.
+    private func persistQuickToggle(
+        updated: Connection,
+        previous: Connection,
+        onSuccess: () async -> Void
+    ) async {
+        let index = connections.firstIndex(where: { $0.id == updated.id })
+        if let index {
+            connections[index] = updated
+        }
         do {
             try await connectionRepository.update(updated)
             ConfigurationService.shared.markUnsavedChanges()
-            await loadData()
-            logInfo("Save password toggled for \(connection.name): \(updated.savePassword)", category: .database)
+            await onSuccess()
         } catch {
-            logError("Failed to toggle save password: \(error)", category: .database)
+            if let index {
+                connections[index] = previous
+            }
+            logError("Failed to update setting for \(previous.name): \(error)", category: .database)
             self.error = AppError.from(error)
         }
     }
@@ -367,13 +432,10 @@ final class ConnectionListViewModel {
 
             connectionToConnect = connection
 
-            let isAnonymousOrGuest = connection.connectionType != .sftp &&
-                ["anonymous", "guest", ""].contains(connection.username.lowercased())
-
             if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
                 logInfo("Found password, establishing persistent session", category: .ui)
                 await performSessionConnect(connection: connection, password: savedPassword)
-            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+            } else if connection.authMethod == .privateKey || connection.supportsAnonymousAuth {
                 logInfo("Key/Anonymous auth, establishing session without password prompt", category: .ui)
                 await performSessionConnect(connection: connection, password: "")
             } else {
@@ -402,13 +464,10 @@ final class ConnectionListViewModel {
 
             connectionToConnect = connection
 
-            let isAnonymousOrGuest = connection.connectionType != .sftp &&
-                ["anonymous", "guest", ""].contains(connection.username.lowercased())
-
             if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
                 logInfo("Found password/session, opening file browser immediately", category: .ui)
                 openFileBrowser(for: connection, password: savedPassword)
-            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+            } else if connection.authMethod == .privateKey || connection.supportsAnonymousAuth {
                 logInfo("Key/Anonymous auth, opening file browser", category: .ui)
                 openFileBrowser(for: connection, password: "")
             } else {
@@ -489,12 +548,9 @@ final class ConnectionListViewModel {
                 return
             }
 
-            let isAnonymousOrGuest = connection.connectionType != .sftp &&
-                ["anonymous", "guest", ""].contains(connection.username.lowercased())
-
             if let savedPassword = ConnectionSessionManager.shared.getCachedPassword(for: connection.id) {
                 await performFinderMount(connection: connection, password: savedPassword)
-            } else if connection.authMethod == .privateKey || isAnonymousOrGuest {
+            } else if connection.authMethod == .privateKey || connection.supportsAnonymousAuth {
                 await performFinderMount(connection: connection, password: "")
             } else {
                 connectionToConnect = connection
@@ -544,15 +600,17 @@ final class ConnectionListViewModel {
     }
 
     private func performSessionConnect(connection: Connection, password: String) async {
+        let latestConnection = connections.first(where: { $0.id == connection.id }) ?? connection
         do {
-            try await ConnectionSessionManager.shared.connect(connection, password: password)
-            AnalyticsService.trackConnectionConnected(protocol: .init(from: connection.connectionType), success: true)
+            try await ConnectionSessionManager.shared.connect(latestConnection, password: password)
+            AnalyticsService.trackConnectionConnected(protocol: .init(from: latestConnection.connectionType), success: true)
+            await FinderMountManager.shared.autoMountOnConnectIfEnabled(for: latestConnection, password: password)
         } catch {
             logError("Failed to connect session: \(error)", category: .network)
             let appError = AppError.from(error)
             if case .authenticationFailed = appError {
-                ConnectionSessionManager.shared.clearSession(for: connection.id)
-                connectionToConnect = connection
+                ConnectionSessionManager.shared.clearSession(for: latestConnection.id)
+                connectionToConnect = latestConnection
                 passwordPromptTarget = .connectSession
                 authErrorMessage = loc(
                     "Authentication failed. Please check your password and try again.",
@@ -578,7 +636,8 @@ final class ConnectionListViewModel {
             connectionType: connection.connectionType,
             socksProxyEnabled: connection.socksProxyEnabled,
             socksProxyPort: connection.socksProxyPort,
-            ftpMaxStreams: connection.ftpMaxStreams
+            ftpMaxStreams: connection.ftpMaxStreams,
+            autoMount: connection.autoMount
         )
 
         let windowId = windowManager.storeFileBrowserData(data)

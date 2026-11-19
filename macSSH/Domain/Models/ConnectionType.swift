@@ -16,7 +16,7 @@ enum ConnectionType: String, Codable, Sendable, CaseIterable {
     var displayName: String {
         switch self {
         case .sftp:
-            return "SFTP (SSH)"
+            return "SSH"
         case .ftp:
             return "FTP"
         case .smb:
@@ -107,5 +107,9 @@ enum ConnectionType: String, Codable, Sendable, CaseIterable {
 
     var supportsFinderMount: Bool {
         self == .ftp || self == .sftp
+    }
+
+    var supportsAutoMount: Bool {
+        self == .ftp
     }
 }

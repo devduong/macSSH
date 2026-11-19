@@ -387,6 +387,13 @@ final class FileBrowserViewModel {
             if !self.password.isEmpty {
                 ConnectionSessionManager.shared.cachePassword(self.password, for: connection.id)
             }
+            if connection.connectionType.supportsAutoMount && connection.autoMount {
+                let targetConnection = self.connection
+                let targetPassword = self.password
+                Task { @MainActor in
+                    await FinderMountManager.shared.autoMountOnConnectIfEnabled(for: targetConnection, password: targetPassword)
+                }
+            }
             currentPath = await sftpSession.currentPath
             navigationService.reset(to: currentPath)
             await loadFiles()

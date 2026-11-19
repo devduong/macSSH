@@ -259,6 +259,25 @@ public enum L10n_VI {
         "mounted_in_finder": "Đã mount vào Finder",
         "finder_mount_success": "Đã mount vào Finder",
         "finder_mount_failed": "Mount vào Finder thất bại",
-        "finder_unmounted": "Đã gỡ khỏi Finder"
+        "finder_unmounted": "Đã gỡ khỏi Finder",
+
+        // MARK: - Startup Automation & Quick Settings
+        "startup_automation": "Tự động khi mở ứng dụng",
+        "auto_connect": "Tự kết nối",
+        "auto_mount": "Tự mount",
+        "auto_connect_on_launch": "Tự động kết nối khi mở ứng dụng",
+        "auto_mount_on_launch": "Tự động mount vào Finder khi mở ứng dụng",
+        "auto_connect_on_help": "Tự động kết nối đang BẬT — sẽ tự kết nối khi mở macSSH (bấm để tắt)",
+        "auto_connect_off_help": "Tự động kết nối đang TẮT — bấm để tự động kết nối khi mở macSSH",
+        "auto_mount_on_help": "Tự động mount đang BẬT — sẽ tự mount vào Finder khi mở macSSH (bấm để tắt)",
+        "auto_mount_off_help": "Tự động mount đang TẮT — bấm để tự động mount vào Finder khi mở macSSH",
+        "enable_auto_connect": "Bật tự động kết nối",
+        "disable_auto_connect": "Tắt tự động kết nối",
+        "enable_auto_mount": "Bật tự động mount vào Finder",
+        "disable_auto_mount": "Tắt tự động mount vào Finder",
+        "auto_save_password_hint_title": "Nên bật lưu mật khẩu",
+        "auto_save_password_hint_msg": "Hãy bật 'Đã lưu pass' và lưu file cấu hình (⌘S) để \"%@\" tự động chạy khi mở lại ứng dụng.",
+        "auto_startup_missing_password_title": "Bỏ qua tự động khởi chạy",
+        "auto_startup_missing_password": "Chưa có mật khẩu đã lưu cho: %@"
     ]
 }
