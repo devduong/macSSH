@@ -53,7 +53,7 @@ final class UpdatePromptWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        if UpdateService.shared.isDownloading {
+        if UpdateService.shared.isDownloading && !UpdateService.shared.isInstalling {
             UpdateService.shared.cancelDownload()
         }
     }
@@ -154,19 +154,26 @@ struct UpdatePromptView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
-            // Download progress bar (when downloading)
-            if updateService.isDownloading {
+            // Download / install progress bar
+            if updateService.isDownloading || updateService.isInstalling {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(L10n.tr("downloading_update"))
+                        Text(updateService.isInstalling ? L10n.tr("installing_update") : L10n.tr("downloading_update"))
                             .font(.system(size: 11, weight: .medium))
                         Spacer()
-                        Text("\(Int((updateService.downloadProgress * 100).rounded()))%")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                        if !updateService.isInstalling {
+                            Text("\(Int((updateService.downloadProgress * 100).rounded()))%")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    ProgressView(value: updateService.downloadProgress, total: 1.0)
-                        .progressViewStyle(.linear)
+                    if updateService.isInstalling {
+                        ProgressView()
+                            .progressViewStyle(.linear)
+                    } else {
+                        ProgressView(value: updateService.downloadProgress, total: 1.0)
+                            .progressViewStyle(.linear)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 10)
@@ -181,16 +188,28 @@ struct UpdatePromptView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .disabled(updateService.isInstalling)
 
                 Button(L10n.tr("skip_this_version")) {
                     updateService.skipCurrentUpdate()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .disabled(updateService.isInstalling)
 
                 Spacer()
 
-                if updateService.isDownloading {
+                if updateService.isInstalling {
+                    Button {} label: {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(L10n.tr("installing_update"))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(true)
+                } else if updateService.isDownloading {
                     Button(L10n.tr("cancel")) {
                         updateService.cancelDownload()
                     }

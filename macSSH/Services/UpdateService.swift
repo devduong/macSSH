@@ -255,6 +255,8 @@ final class UpdateService {
 
     private(set) var isChecking = false
     private(set) var isDownloading = false
+    private(set) var isInstalling = false
+    private(set) var isPerformingUpdateRestart = false
     private(set) var downloadProgress: Double = 0
     private(set) var availableUpdate: ReleaseUpdateInfo?
     private(set) var statusMessage: String?
@@ -294,21 +296,16 @@ final class UpdateService {
 
     // MARK: - Public Entry Points
 
-    /// Runs automatic update check on launch if enabled and unlocked;
+    /// Runs automatic update check on launch if unlocked;
     /// otherwise waits until Touch ID / app lock is unlocked.
     func runLaunchCheckIfNeeded() async {
-        guard isAutoCheckEnabled else {
-            logDebug("[Update] Automatic update check skipped (disabled by user).", category: .app)
-            return
-        }
-
         if AppLockManager.shared.isLocked {
             pendingLaunchCheck = true
             return
         }
 
         // Brief delay so the main window finishes rendering before network I/O & optional prompt
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
         guard !AppLockManager.shared.isLocked else {
             pendingLaunchCheck = true
             return
@@ -319,9 +316,6 @@ final class UpdateService {
     }
 
     func checkForUpdates(manual: Bool) async {
-        if !manual && !isAutoCheckEnabled {
-            return
-        }
         guard !isChecking else {
             if manual, availableUpdate != nil {
                 UpdatePromptWindowController.shared.show()
@@ -352,19 +346,26 @@ final class UpdateService {
                 return
             }
 
-            // If user skipped this version (or a newer one), stay silent on automatic checks
-            // until a version strictly greater than `skippedVersion` is released.
-            if !manual, let skipped = skippedVersion,
-               ReleaseVersionFilter.compareVersions(latest.version, skipped) != .orderedDescending {
-                logInfo("[Update] Release v\(latest.version) skipped automatically (user skipped v\(skipped)).", category: .app)
-                statusMessage = nil
-                return
-            }
-
+            // Always populate availableUpdate so the toolbar green-dot indicator and Help menu stay active
             availableUpdate = latest
             statusMessage = L10n.tr("update_version_summary", latest.version, currentVersion)
             isStatusError = false
             logInfo("[Update] Found new stable release v\(latest.version) (current: v\(currentVersion)).", category: .app)
+
+            if !manual {
+                guard isAutoCheckEnabled else {
+                    logDebug("[Update] Automatic popup skipped (disabled by user); toolbar update indicator remains active.", category: .app)
+                    return
+                }
+                // If user skipped this version (or a newer one), stay silent on automatic popup
+                // until a version strictly greater than `skippedVersion` is released.
+                if let skipped = skippedVersion,
+                   ReleaseVersionFilter.compareVersions(latest.version, skipped) != .orderedDescending {
+                    logInfo("[Update] Release v\(latest.version) popup skipped automatically (user skipped v\(skipped)).", category: .app)
+                    return
+                }
+            }
+
             UpdatePromptWindowController.shared.show()
         } catch {
             logWarning("[Update] Failed to check updates: \(error.localizedDescription)", category: .network)
@@ -394,7 +395,6 @@ final class UpdateService {
             logInfo("[Update] User skipped version v\(version); will remind on next version after v\(version).", category: .app)
         }
         cancelDownload()
-        availableUpdate = nil
         UpdatePromptWindowController.shared.close()
     }
 
@@ -402,7 +402,6 @@ final class UpdateService {
         isAutoCheckEnabled = false
         logInfo("[Update] User selected 'Never Remind Again'; automatic update checks disabled.", category: .app)
         cancelDownload()
-        availableUpdate = nil
         UpdatePromptWindowController.shared.close()
     }
 
@@ -422,9 +421,10 @@ final class UpdateService {
             UpdatePromptWindowController.shared.close()
             return
         }
-        guard !isDownloading else { return }
+        guard !isDownloading, !isInstalling else { return }
 
         isDownloading = true
+        isInstalling = false
         downloadProgress = 0
 
         let fileName = release.dmgFileName ?? "macSSH_\(release.version).dmg"
@@ -453,18 +453,35 @@ final class UpdateService {
             downloadSession?.finishTasksAndInvalidate()
             downloadSession = nil
 
-            logSuccess("[Update] Downloaded \(localFileURL.lastPathComponent)", category: .app)
-            ToastManager.shared.show(
-                title: L10n.tr("update_dmg_ready_title"),
-                message: L10n.tr("update_dmg_ready_msg", localFileURL.lastPathComponent),
-                type: .success,
-                duration: 6.0
-            )
-            NSWorkspace.shared.open(localFileURL)
-            UpdatePromptWindowController.shared.close()
+            logSuccess("[Update] Downloaded \(localFileURL.lastPathComponent) — starting automatic install & reopen...", category: .app)
+            isInstalling = true
+
+            do {
+                let staged = try await Task.detached(priority: .userInitiated) {
+                    try Self.stageAppFromDMG(dmgURL: localFileURL)
+                }.value
+
+                try await performSelfReplaceAndReopen(
+                    stagedAppURL: staged.stagedAppURL,
+                    stagingDir: staged.stagingDir,
+                    downloadedDMGURL: localFileURL
+                )
+            } catch {
+                isInstalling = false
+                logWarning("[Update] Automatic install failed (\(error.localizedDescription)); falling back to opening DMG.", category: .app)
+                ToastManager.shared.show(
+                    title: L10n.tr("update_dmg_ready_title"),
+                    message: L10n.tr("update_dmg_ready_msg", localFileURL.lastPathComponent),
+                    type: .success,
+                    duration: 6.0
+                )
+                NSWorkspace.shared.open(localFileURL)
+                UpdatePromptWindowController.shared.close()
+            }
         } catch {
             let isCancelled = (error as NSError).code == NSURLErrorCancelled
             isDownloading = false
+            isInstalling = false
             downloadProgress = 0
             downloadTask = nil
             downloadSession?.invalidateAndCancel()
@@ -483,12 +500,220 @@ final class UpdateService {
     }
 
     func cancelDownload() {
+        guard !isInstalling else { return }
         downloadTask?.cancel()
         downloadTask = nil
         downloadSession?.invalidateAndCancel()
         downloadSession = nil
         isDownloading = false
         downloadProgress = 0
+    }
+
+    // MARK: - Self-Update & Reopen Engine
+
+    nonisolated private static func stageAppFromDMG(dmgURL: URL) throws -> (stagingDir: URL, stagedAppURL: URL) {
+        let fm = FileManager.default
+        let uid = UUID().uuidString
+        let mountPoint = fm.temporaryDirectory.appendingPathComponent("macSSH_UpdateMount_\(uid)", isDirectory: true)
+        let stagingDir = fm.temporaryDirectory.appendingPathComponent("macSSH_UpdateStage_\(uid)", isDirectory: true)
+
+        try fm.createDirectory(at: mountPoint, withIntermediateDirectories: true)
+        var didMount = false
+        defer {
+            if didMount {
+                _ = try? runProcess(
+                    executable: "/usr/bin/hdiutil",
+                    arguments: ["detach", mountPoint.path, "-force", "-quiet"]
+                )
+            }
+            try? fm.removeItem(at: mountPoint)
+        }
+
+        // Attach DMG silently without opening Finder windows
+        do {
+            _ = try runProcess(
+                executable: "/usr/bin/hdiutil",
+                arguments: [
+                    "attach", dmgURL.path,
+                    "-mountpoint", mountPoint.path,
+                    "-nobrowse", "-readonly", "-noverify", "-noautoopen", "-quiet"
+                ]
+            )
+            didMount = true
+        } catch {
+            _ = try runProcess(
+                executable: "/usr/bin/hdiutil",
+                arguments: [
+                    "attach", dmgURL.path,
+                    "-mountpoint", mountPoint.path,
+                    "-nobrowse", "-readonly", "-noautoopen", "-quiet"
+                ]
+            )
+            didMount = true
+        }
+
+        // Locate the .app bundle inside the mounted DMG volume
+        let directCandidate = mountPoint.appendingPathComponent("macSSH.app", isDirectory: true)
+        let appInDMG: URL
+        if fm.fileExists(atPath: directCandidate.path) {
+            appInDMG = directCandidate
+        } else {
+            let contents = try fm.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+            guard let foundApp = contents.first(where: { $0.pathExtension.lowercased() == "app" }) else {
+                throw AppError.connectionFailed("No .app bundle found inside downloaded DMG.")
+            }
+            appInDMG = foundApp
+        }
+
+        try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        let stagedAppURL = stagingDir.appendingPathComponent(appInDMG.lastPathComponent, isDirectory: true)
+
+        // Copy .app bundle preserving symlinks, permissions, and code signature
+        do {
+            _ = try runProcess(
+                executable: "/usr/bin/ditto",
+                arguments: [appInDMG.path, stagedAppURL.path]
+            )
+        } catch {
+            try? fm.removeItem(at: stagingDir)
+            throw error
+        }
+
+        // Strip quarantine attributes so macOS Gatekeeper does not block relaunch
+        _ = try? runProcess(
+            executable: "/usr/bin/xattr",
+            arguments: ["-cr", stagedAppURL.path]
+        )
+
+        return (stagingDir, stagedAppURL)
+    }
+
+    nonisolated private static func runProcess(executable: String, arguments: [String]) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        let outStr = String(data: outData, encoding: .utf8) ?? ""
+        let errStr = (String(data: errData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard process.terminationStatus == 0 else {
+            throw AppError.connectionFailed(errStr.isEmpty ? "\(executable) exited with status \(process.terminationStatus)" : errStr)
+        }
+        return outStr
+    }
+
+    private func performSelfReplaceAndReopen(
+        stagedAppURL: URL,
+        stagingDir: URL,
+        downloadedDMGURL: URL
+    ) async throws {
+        let currentBundleURL = Bundle.main.bundleURL.standardizedFileURL
+        let targetAppURL: URL
+        if currentBundleURL.pathExtension.lowercased() == "app" && !currentBundleURL.path.hasPrefix("/Volumes/") {
+            targetAppURL = currentBundleURL
+        } else {
+            targetAppURL = URL(fileURLWithPath: "/Applications/macSSH.app")
+        }
+
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("macssh_update_installer_\(UUID().uuidString).sh")
+
+        let scriptContent = """
+        #!/bin/sh
+        OLD_PID="$1"
+        STAGED_APP="$2"
+        TARGET_APP="$3"
+        STAGING_DIR="$4"
+        DMG_FILE="$5"
+        SCRIPT_SELF="$0"
+
+        # 1. Wait for the old macSSH instance to exit cleanly (up to 15s)
+        i=0
+        while kill -0 "$OLD_PID" 2>/dev/null; do
+            sleep 0.1
+            i=$((i + 1))
+            if [ "$i" -ge 150 ]; then
+                kill -9 "$OLD_PID" 2>/dev/null || true
+                break
+            fi
+        done
+
+        sleep 0.2
+
+        # 2. Replace old .app bundle with staged .app bundle
+        rm -rf "$TARGET_APP" 2>/dev/null
+        if mv "$STAGED_APP" "$TARGET_APP" 2>/dev/null || /usr/bin/ditto "$STAGED_APP" "$TARGET_APP" 2>/dev/null; then
+            /usr/bin/xattr -cr "$TARGET_APP" 2>/dev/null || true
+        else
+            /usr/bin/osascript -e "do shell script \\"rm -rf '$TARGET_APP' && /usr/bin/ditto '$STAGED_APP' '$TARGET_APP' && /usr/bin/xattr -cr '$TARGET_APP'\\" with administrator privileges" >/dev/null 2>&1 || true
+        fi
+
+        # 3. Clean up staging directory and downloaded DMG
+        rm -rf "$STAGING_DIR" 2>/dev/null || true
+        rm -f "$DMG_FILE" 2>/dev/null || true
+
+        # 4. Reopen the updated macSSH app
+        /usr/bin/open "$TARGET_APP" || /usr/bin/open -n "$TARGET_APP"
+
+        rm -f "$SCRIPT_SELF" 2>/dev/null || true
+        """
+
+        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        // Mark update restart in progress so applicationShouldTerminate exits without blocking prompt
+        isPerformingUpdateRestart = true
+
+        // Auto-save configuration if an active configuration file exists
+        let configService = ConfigurationService.shared
+        if configService.hasUnsavedChanges && configService.currentFileURL != nil {
+            try? await configService.save()
+        }
+
+        // Perform full session/mount/process teardown BEFORE spawning the detached updater script
+        TerminalLauncherService.cleanupOldScripts()
+        await FinderMountManager.shared.unmountAll()
+        await ConnectionSessionManager.shared.disconnectAll()
+        NativeProcessRegistry.shared.terminateAll()
+
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let launcher = Process()
+        launcher.executableURL = URL(fileURLWithPath: "/bin/sh")
+        launcher.arguments = [
+            "-c",
+            "/usr/bin/nohup /bin/sh \"$1\" \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" >/dev/null 2>&1 &",
+            "sh",
+            scriptURL.path,
+            "\(currentPID)",
+            stagedAppURL.path,
+            targetAppURL.path,
+            stagingDir.path,
+            downloadedDMGURL.path
+        ]
+        launcher.standardInput = FileHandle.nullDevice
+        launcher.standardOutput = FileHandle.nullDevice
+        launcher.standardError = FileHandle.nullDevice
+        try launcher.run()
+        launcher.waitUntilExit()
+
+        logInfo("[Update] Detached installer launched for target \(targetAppURL.path); terminating old instance (PID \(currentPID))...", category: .app)
+        UpdatePromptWindowController.shared.close()
+
+        NSApp.terminate(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            Darwin.exit(0)
+        }
     }
 
     // MARK: - Private Helpers

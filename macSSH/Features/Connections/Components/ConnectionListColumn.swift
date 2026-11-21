@@ -16,6 +16,7 @@ struct ConnectionListColumn: View {
     @ObservedObject private var l10n = LocalizationManager.shared
     @ObservedObject private var appearanceManager = AppearanceManager.shared
     @ObservedObject private var configService = ConfigurationService.shared
+    @State private var updateService = UpdateService.shared
     @Environment(\.colorScheme) private var colorScheme
 
     private var isDarkMode: Bool {
@@ -153,6 +154,32 @@ struct ConnectionListColumn: View {
                         .foregroundStyle(isDarkMode ? Color.yellow : Color.orange)
                 }
                 .help(isDarkMode ? L10n.tr("switch_to_light") : L10n.tr("switch_to_dark"))
+
+                if let available = updateService.availableUpdate {
+                    Button {
+                        updateService.showAvailableUpdatePrompt()
+                    } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color.primary)
+                                .padding(.top, 2)
+                                .padding(.trailing, 3)
+
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 7, height: 7)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 1.2)
+                                )
+                        }
+                        .fixedSize()
+                        .contentShape(Rectangle())
+                    }
+                    .hoverTooltip(L10n.tr("update_available_toolbar_help", available.version))
+                    .help(L10n.tr("update_available_toolbar_help", available.version))
+                }
             }
         }
     }

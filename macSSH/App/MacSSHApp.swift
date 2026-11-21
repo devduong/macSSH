@@ -117,6 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if UpdateService.shared.isPerformingUpdateRestart {
+            return .terminateNow
+        }
+
         let configService = ConfigurationService.shared
 
         if !configService.hasUnsavedChanges {
